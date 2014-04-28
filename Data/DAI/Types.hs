@@ -3,7 +3,7 @@
 
 module Data.DAI.Types ( ) where
     
-import Prelude hiding (take)
+import Prelude hiding (take, takeWhile)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Int
@@ -33,12 +33,35 @@ instance Module LibraryId where
                   , lbid_comt :: Text -- | Comment
                   }
     module_parser = do
-      rcid <- parseLine "0001" (take 5)
-      
-      undefined
+      rcid' <- parseLine "0001" (take 5)
+      (modn, rcid, expp, ptyp, esid, edtn, codt, coti,vrdt, prof, ocdt, comt) <-
+          parseLine "LBID" $
+                    do modn <- string "LI"
+                       rcid <- parseInt16
+                       expp <- take 3
+                       ptyp <- varString
+                       esid <- varString
+                       edtn <- varString
+                       codt <- take 8
+                       coti <- take 6
+                       vrdt <- take 8
+                       prof <- take 2
+                       ocdt <- take 8
+                       comt <- varString
+                       return (modn, rcid, expp, ptyp, esid, edtn, codt, coti,vrdt, prof, ocdt, comt)
+      parseLine "****" endOfInput
+      return $ LibraryId modn rcid expp ptyp esid edtn codt coti vrdt prof ocdt comt 
 
 i2i :: (Integral a, Num b) => a -> b
 i2i = fromInteger . toInteger
+
+varString :: Parser Text
+varString = do
+  xs <- takeWhile $ notInClass "\US"
+  e <- atEnd
+  if (e) then return xs
+  else do skip $ inClass "\US"
+          return xs
       
 parseInt16 :: Parser Int16
 parseInt16 = fmap (read . T.unpack) $ take 5 
