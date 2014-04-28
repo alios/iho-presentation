@@ -51,7 +51,7 @@ parseLine fn vp
     | otherwise = 
         do _ <- string fn <?> "field name"
            vl <- parseInt16 <?> "field value length"
-           rawf <- take $ i2i vl <?> "raw field"
+           rawf <- (take $ i2i vl) <?> "raw field"
            case (parseOnly vp rawf) of
              Left err -> fail err
              Right t -> return t
