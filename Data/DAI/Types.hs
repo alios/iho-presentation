@@ -38,8 +38,8 @@ instance Module LibraryId where
                   , lbid_rcid :: Int16 -- | Record Identifier 
                   , lbid_expp :: Text -- | Exchange Purpose 
                   , lbid_ptyp :: Text -- | Product Type 
-                  , lbid_esid :: Text -- | Exchange Set Identification Number 
-                  , lbid_edtn :: Text -- | Edition Number
+                  , lbid_esid :: Int -- | Exchange Set Identification Number 
+                  , lbid_edtn :: Float -- | Edition Number
                   , lbid_codt :: Day -- | Compilation Date of Exchange Set
                   , lbid_coti :: DiffTime -- | Compilation Time of Exchange Set
                   , lbid_vrdt :: Day -- | Library-Profile Versions Date
@@ -56,8 +56,8 @@ instance Module LibraryId where
                        rcid <- parseInt16
                        expp <- take 3
                        ptyp <- varString
-                       esid <- varString
-                       edtn <- varString
+                       esid <- fmap (read . T.unpack) varString
+                       edtn <- fmap (read . T.unpack) varString
                        codt <- parseDay
                        coti <- parseTime
                        vrdt <- parseDay
@@ -67,8 +67,11 @@ instance Module LibraryId where
                        return (modn, rcid, expp, ptyp, esid, edtn, codt, coti,vrdt, prof, ocdt, comt)
       let tests = filter (not . fst)
               [ (rcid == rcid', "record ids mismatch: " ++ show rcid' ++ " / " ++ show rcid)
+              , (vrdt <= codt, "vrdt " ++ show vrdt ++ " must be before codt " ++ show codt)
+              , (vrdt <= ocdt, "vrdt " ++ show vrdt ++ " must be before ocdt " ++ show ocdt)
+              , (ocdt <= codt, "ocdt " ++ show ocdt ++ " must be before codt " ++ show codt)
               ]
- --     parseLine "****" endOfInput
+      parseLine "****" endOfInput
       case tests of
         [] -> return $ LibraryId modn rcid expp ptyp esid edtn codt coti vrdt prof ocdt comt 
         (err:_) -> fail $ snd err
