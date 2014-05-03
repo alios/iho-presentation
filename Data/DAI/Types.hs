@@ -4,6 +4,7 @@
 module Data.DAI.Types ( Library(..), parseLibrary
                       , Module(..)
                       , LibraryId (..), lbid_compileTime
+                      , ColourTable(..), ColourMap, ColourMapEntry, cols_lookup
                       ) where
     
 import Prelude hiding (take, takeWhile)
@@ -13,39 +14,86 @@ import Data.Int
 import Data.Attoparsec.Text
 import Data.Time.Calendar
 import Data.Time.Clock
+import Data.List (find)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Prizm.Types
+import Data.Prizm.Color.CIE.XYZ
 
 class Module m where
     data Record m :: *
-
     module_parser :: Parser (Record m)
     
-
-
 data Library = 
-    Library { lib_id :: Record LibraryId }
+    Library { lib_id :: Record LibraryId 
+            , lib_cols :: [Record ColourTable]
+            }
             deriving (Show, Eq)
 
 parseLibrary :: Parser Library
 parseLibrary = do
   id <- module_parser
-  return $ Library id
+  cols <- many' module_parser
+  return $ Library id cols
+
+data ColourTable
+
+type ColourMapEntry = (CIEXYZ Double, Text)
+type ColourMap = Map Text ColourMapEntry
+
+instance Module ColourTable where
+    data Record ColourTable =
+       ColourTable { cols_modn :: ! Text
+                   , cols_rcid :: ! Int16
+                   , cols_stat :: ! Text
+                   , cols_ctus :: ! Text
+                   , cols_entries :: ! ColourMap
+                   } deriving (Show, Eq)
+    module_parser = do 
+      rcid' <- fmap (read . T.unpack) $ parseLine "0001" (take 5)
+      (modn, rcid, stat, ctus) <-
+          parseLine "COLS" $
+                    do modn <- string "CS"
+                       rcid <- parseInt16
+                       stat <- take 3
+                       ctus <- varString
+                       return (modn, rcid, stat, ctus)
+      rs <- many' $ try $ parseLine "CCIE" $ do
+                              ctok <- take 5
+                              chrx <- parseDouble
+                              chry <- parseDouble
+                              clum <- parseDouble
+                              cuse <- varString
+                              return $ (ctok, (constPrism (chrx, chry, clum), cuse))
+      let tests = filter (not . fst) [ (rcid == rcid', "record ids mismatch: " ++ show rcid' ++ " / " ++ show rcid) ]
+      case tests of
+        [] -> do { _ <- parseLine "****" endOfInput  
+                ; return $ ColourTable modn rcid stat ctus (Map.fromList rs)
+                }
+        (err:_) -> fail $ snd err                      
+                  
+cols_lookup :: Text -> Text -> [Record ColourTable] -> Maybe ColourMapEntry
+cols_lookup ctus ctok ts = do
+  t <- find (\t -> cols_ctus t == ctus) ts
+  Map.lookup ctok $ cols_entries t
+          
 
 data LibraryId
 
 instance Module LibraryId where
     data Record LibraryId =
-        LibraryId { lbid_modn :: Text -- | Module Name
-                  , lbid_rcid :: Int16 -- | Record Identifier 
-                  , lbid_expp :: Text -- | Exchange Purpose 
-                  , lbid_ptyp :: Text -- | Product Type 
-                  , lbid_esid :: Int -- | Exchange Set Identification Number 
-                  , lbid_edtn :: Float -- | Edition Number
-                  , lbid_codt :: Day -- | Compilation Date of Exchange Set
-                  , lbid_coti :: DiffTime -- | Compilation Time of Exchange Set
-                  , lbid_vrdt :: Day -- | Library-Profile Versions Date
-                  , lbid_prof :: Text -- | Library Application Profile
-                  , lbid_ocdt :: Day -- | Date of Version of applied Object Catalogue
-                  , lbid_comt :: Text -- | Comment
+        LibraryId { lbid_modn :: ! Text -- | Module Name
+                  , lbid_rcid :: ! Int16 -- | Record Identifier 
+                  , lbid_expp :: ! Text -- | Exchange Purpose 
+                  , lbid_ptyp :: ! Text -- | Product Type 
+                  , lbid_esid :: ! Int -- | Exchange Set Identification Number 
+                  , lbid_edtn :: ! Float -- | Edition Number
+                  , lbid_codt :: ! Day -- | Compilation Date of Exchange Set
+                  , lbid_coti :: ! DiffTime -- | Compilation Time of Exchange Set
+                  , lbid_vrdt :: ! Day -- | Library-Profile Versions Date
+                  , lbid_prof :: ! Text -- | Library Application Profile
+                  , lbid_ocdt :: ! Day -- | Date of Version of applied Object Catalogue
+                  , lbid_comt :: ! Text -- | Comment
 
                   } deriving (Show, Eq)
     module_parser = do
@@ -71,14 +119,26 @@ instance Module LibraryId where
               , (vrdt <= ocdt, "vrdt " ++ show vrdt ++ " must be before ocdt " ++ show ocdt)
               , (ocdt <= codt, "ocdt " ++ show ocdt ++ " must be before codt " ++ show codt)
               ]
-      parseLine "****" endOfInput
       case tests of
-        [] -> return $ LibraryId modn rcid expp ptyp esid edtn codt coti vrdt prof ocdt comt 
+        [] -> do { _ <- parseLine "****" endOfInput  
+                ; return $ LibraryId modn rcid expp ptyp esid edtn codt coti vrdt prof ocdt comt 
+                }
         (err:_) -> fail $ snd err
 
 lbid_compileTime :: Record LibraryId -> UTCTime
 lbid_compileTime lib = UTCTime (lbid_codt lib) (lbid_coti lib)
 
+
+
+constPrism (x,y,z) = CIEXYZ x y z
+xyYPrism = constPrism . xyY2XYZ
+
+xyY2XYZ :: Fractional t => (t, t, t) -> (t, t, t)
+xyY2XYZ (x,y,l) = 
+    let x' = x * (l / y)
+        y' = y * (l / y)
+        z' = (1 - x - y) * (l / y)
+    in (x', y', z')
 
 i2i :: (Integral a, Num b) => a -> b
 i2i = fromInteger . toInteger
@@ -90,7 +150,10 @@ varString = do
   if (e) then return xs
   else do skip $ inClass "\US"
           return xs
-      
+
+parseDouble :: Parser Double 
+parseDouble = fmap (read . T.unpack) varString
+
 parseInt16 :: Parser Int16
 parseInt16 = fmap (read . T.unpack) $ take 5 
 
