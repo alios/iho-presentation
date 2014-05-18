@@ -28,6 +28,9 @@ instance Module LookupTable where
                          , lupt_stat :: ! Text
                          , lupt_obcl :: ! Text
                          , lupt_ftyp :: ! Char
+                         , lupt_dpri :: ! Int16
+                         , lupt_rpri :: ! Char
+                         , lupt_tnam :: ! Text
                          , lupt_attc :: ! [(Text, Text)]
                          , lupt_inst :: ! Text 
                          , lupt_disc :: ! Text
@@ -36,7 +39,7 @@ instance Module LookupTable where
 
     module_parser = do
       rcid' <- parseLine "0001" (take 5)
-      (modn, rcid, stat, obcl, ftyp, dpri, tnam) <-
+      (modn, rcid, stat, obcl, ftyp, dpri, rpri, tnam) <-
           parseLine "LUPT" $
                     do modn <- string "LU"
                        rcid <- parseInt16
@@ -44,8 +47,9 @@ instance Module LookupTable where
                        obcl <- take 6
                        ftyp <- satisfy $ inClass "ALP"
                        dpri <- parseInt16
+                       rpri <- satisfy $ inClass "OS"
                        tnam <- varString
-                       return (modn, rcid, stat, obcl, ftyp, dpri, tnam)
+                       return (modn, rcid, stat, obcl, ftyp, dpri, rpri, tnam)
       attc <- parseLine "ATTC" $ many' $ do
                               attl <- take 6
                               attv <- varString
@@ -60,6 +64,9 @@ instance Module LookupTable where
                  , lupt_stat = stat 
                  , lupt_obcl = obcl
                  , lupt_ftyp = ftyp
+                 , lupt_dpri = dpri
+                 , lupt_rpri = rpri
+                 , lupt_tnam = tnam
                  , lupt_attc = attc
                  , lupt_inst = inst
                  , lupt_disc = disc
