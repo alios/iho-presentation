@@ -10,7 +10,7 @@ name:                iho-presentation
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.1.0
+version:             0.1.2
 
 -- A short (one-line) description of the package.
 synopsis:            an haskell implementation of IHO S-52
@@ -52,20 +52,27 @@ cabal-version:       >=1.10
 library
   -- Modules exported by the library.
   exposed-modules:    Data.DAI.Types
+                      Data.DAI.Types.Module
+                      Data.DAI.Types.LBID
+                      Data.DAI.Types.ColourTable
+                      Data.DAI.CSS
   
   -- Modules included in this library but not exported.
-  -- other-modules:       
+  other-modules:      Data.DAI.Types.Helper
+
   
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:    
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.6 && <4.7,
+  build-depends:       base >=4.6 ,
                        time,
                        containers,
                        attoparsec >= 0.11,
                        text >= 1.0,
-                       prizm
+                       prizm,
+                       css-text
+
  
   -- Directories containing source files.
   -- hs-source-dirs:      
