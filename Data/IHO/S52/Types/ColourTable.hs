@@ -40,7 +40,7 @@ instance Module ColourTable where
                    , cols_entries :: ! ColourMap
                    } deriving (Show, Eq)
     module_parser = do 
-      rcid' <- fmap (read . T.unpack) $ parseLine "0001" (take 5)
+      rcid' <- parseLine "0001" (take 5)
       (modn, rcid, stat, ctus) <-
           parseLine "COLS" $
                     do modn <- string "CS"
@@ -55,12 +55,13 @@ instance Module ColourTable where
                               clum <- parseDouble
                               cuse <- varString
                               return $ (ctok, (xyYPrism (chrx, chry, clum), cuse))
-      let tests = filter (not . fst) [ (rcid == rcid', "record ids mismatch: " ++ show rcid' ++ " / " ++ show rcid) ]
-      case tests of
-        [] -> do { _ <- parseLine "****" endOfInput  
-                ; return $ ColourTable modn rcid stat ctus (Map.fromList rs)
-                }
-        (err:_) -> fail $ snd err                      
+      _ <- parseLine "****" endOfInput  
+      return $ ColourTable { cols_modn = modn 
+                           , cols_rcid = rcid
+                           , cols_stat = stat
+                           , cols_ctus = ctus
+                           , cols_entries = (Map.fromList rs)
+                           }
                   
 cols_lookup :: Text -> Text -> [Record ColourTable] -> Maybe ColourMapEntry
 cols_lookup ctus ctok ts = do

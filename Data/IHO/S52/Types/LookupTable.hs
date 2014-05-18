@@ -35,14 +35,14 @@ instance Module LookupTable where
                          } deriving (Show, Eq)
 
     module_parser = do
-      rcid' <- fmap (read . T.unpack) $ parseLine "0001" (take 5)
+      rcid' <- parseLine "0001" (take 5)
       (modn, rcid, stat, obcl, ftyp, dpri, tnam) <-
           parseLine "LUPT" $
                     do modn <- string "LU"
                        rcid <- parseInt16
                        stat <- take 3
                        obcl <- take 6
-                       ftyp <- satisfy $ inClass "AL"
+                       ftyp <- satisfy $ inClass "ALP"
                        dpri <- parseInt16
                        tnam <- varString
                        return (modn, rcid, stat, obcl, ftyp, dpri, tnam)
@@ -53,22 +53,17 @@ instance Module LookupTable where
       inst <- parseLine "INST" $ varString
       disc <- parseLine "DISC" $ varString
       lucm <- parseLine "LUCM" $ varString
-
-      let tests = filter (not . fst) [ (rcid == rcid', "record ids mismatch: " ++ show rcid' ++ " / " ++ show rcid) ]
-      case tests of
-        [] -> do { _ <- parseLine "****" endOfInput  
-                ; return $ LookupTableEntry
-                             { lupt_modn = modn 
-                             , lupt_rcid = rcid
-                             , lupt_stat = stat 
-                             , lupt_obcl = obcl
-                             , lupt_ftyp = ftyp
-                             , lupt_attc = attc
-                             , lupt_inst = inst
-                             , lupt_disc = disc
-                             , lupt_lucm = lucm
-                             }
-                }
-        (err:_) -> fail $ snd err                      
+      _ <- parseLine "****" endOfInput  
+      return $ LookupTableEntry
+                 { lupt_modn = modn 
+                 , lupt_rcid = rcid
+                 , lupt_stat = stat 
+                 , lupt_obcl = obcl
+                 , lupt_ftyp = ftyp
+                 , lupt_attc = attc
+                 , lupt_inst = inst
+                 , lupt_disc = disc
+                 , lupt_lucm = lucm
+                 }
 
   

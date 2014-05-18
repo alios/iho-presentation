@@ -10,7 +10,7 @@ name:                iho-presentation
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.2.1
+version:             0.2.2
 
 -- A short (one-line) description of the package.
 synopsis:            an haskell implementation of IHO S-52
@@ -56,6 +56,9 @@ library
                       Data.IHO.S52.Types.LBID
                       Data.IHO.S52.Types.ColourTable
                       Data.IHO.S52.Types.LookupTable
+                      Data.IHO.S52.Types.Pattern
+                      Data.IHO.S52.Types.Symbol
+                      Data.IHO.S52.Types.LineStyle
                       Data.IHO.S52.CSS
   
   -- Modules included in this library but not exported.

@@ -76,4 +76,7 @@ parseLine fn vp
                Right t -> return t
            
 
-  
+skipSpaces :: Parser ()
+skipSpaces = do
+  _ <- many' $ try $ skip $ \c -> isHorizontalSpace c || inClass "\r\n" c 
+  return ()
