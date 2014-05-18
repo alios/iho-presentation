@@ -21,6 +21,27 @@ data LookupTable
 
 type LookupMap = Map Text Text
 
+
+parseI :: Parser Text
+parseI = parseI' []
+
+parseI' :: String -> Parser Text
+parseI' is = do
+  eof <- atEnd
+  if (eof) then return $ T.pack is
+  else do
+    i <- anyChar
+    if (i == ';') then return $ T.pack is
+    else parseI' (is ++ [i])
+    
+parseInstr :: [Text] -> Parser [Text]
+parseInstr is = do
+  i <- parseI
+  eof <- atEnd
+  if(eof) then return (is ++ [i])
+  else parseInstr (is ++ [i])
+
+
 instance Module LookupTable where
     data Record LookupTable = 
         LookupTableEntry { lupt_modn :: ! Text
@@ -32,7 +53,7 @@ instance Module LookupTable where
                          , lupt_rpri :: ! Char
                          , lupt_tnam :: ! Text
                          , lupt_attc :: ! [(Text, Text)]
-                         , lupt_inst :: ! Text 
+                         , lupt_inst :: ! [Text]
                          , lupt_disc :: ! Text
                          , lupt_lucm :: ! Text
                          } deriving (Show, Eq)
@@ -54,7 +75,7 @@ instance Module LookupTable where
                               attl <- take 6
                               attv <- varString
                               return (attl, attv)
-      inst <- parseLine "INST" $ varString
+      inst <- parseLine "INST" $ parseInstr []
       disc <- parseLine "DISC" $ varString
       lucm <- parseLine "LUCM" $ varString
       _ <- parseLine "****" endOfInput  
