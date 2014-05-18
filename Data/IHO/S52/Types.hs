@@ -1,18 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.DAI.Types
+module Data.IHO.S52.Types
     ( Library (..)
     , parseLibrary
-    , module Data.DAI.Types.Module
-    , module Data.DAI.Types.LBID
-    , module Data.DAI.Types.ColourTable      
+    , module Data.IHO.S52.Types.Module
+    , module Data.IHO.S52.Types.LBID
+    , module Data.IHO.S52.Types.ColourTable      
     ) where
     
 import Data.Attoparsec.Text
 
-import Data.DAI.Types.Module
-import Data.DAI.Types.LBID
-import Data.DAI.Types.ColourTable
+import Data.IHO.S52.Types.Module
+import Data.IHO.S52.Types.LBID
+import Data.IHO.S52.Types.ColourTable
     
 data Library = 
     Library { lib_id :: Record LibraryId 

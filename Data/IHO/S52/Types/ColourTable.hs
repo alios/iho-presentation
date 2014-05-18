@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.DAI.Types.ColourTable
+module Data.IHO.S52.Types.ColourTable
     ( ColourTable (..)
     , ColourMapEntry
     , ColourMap
@@ -23,8 +23,8 @@ import Data.Prizm.Types
 import Data.Prizm.Color.CIE.XYZ
 
 
-import Data.DAI.Types.Module
-import Data.DAI.Types.Helper
+import Data.IHO.S52.Types.Module
+import Data.IHO.S52.Types.Helper
 
 data ColourTable
 

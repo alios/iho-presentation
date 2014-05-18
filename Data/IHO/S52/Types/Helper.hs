@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.DAI.Types.Helper where
+module Data.IHO.S52.Types.Helper where
 
 import Prelude hiding (take, takeWhile)
 import Data.Text (Text)
@@ -10,15 +10,13 @@ import Data.Int
 import Data.Attoparsec.Text
 import Data.Time.Calendar
 import Data.Time.Clock
-import Data.List (find)
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Prizm.Types
-import Data.Prizm.Color.CIE.XYZ
 
 
 constPrism :: (a, a, a) -> CIEXYZ a
 constPrism (x,y,z) = CIEXYZ x y z
+
+xyYPrism :: (Double, Double, Double) -> CIEXYZ Double
 xyYPrism = constPrism . xyY2XYZ
 
 xyY2XYZ :: Fractional t => (t, t, t) -> (t, t, t)

@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.DAI.Types.Module where
+module Data.IHO.S52.Types.Module where
 
 import Data.Attoparsec.Text
 

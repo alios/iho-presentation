@@ -2,9 +2,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.DAI.CSS where
+module Data.IHO.S52.CSS where
 
-import Data.DAI.Types
+import Data.IHO.S52.Types
 import Data.Text.Lazy (Text)
 import Text.Printf
 import qualified Data.Text

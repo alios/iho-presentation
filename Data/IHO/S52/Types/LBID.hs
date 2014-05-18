@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.DAI.Types.LBID
+module Data.IHO.S52.Types.LBID
     ( LibraryId (..)
     , Record (..)
     , lbid_compileTime 
@@ -16,26 +16,25 @@ import Data.Time.Calendar
 import Data.Time.Clock
 
 
-import Data.DAI.Types.Module
-import Data.DAI.Types.Helper
+import Data.IHO.S52.Types.Module
+import Data.IHO.S52.Types.Helper
 
 data LibraryId
 
 instance Module LibraryId where
     data Record LibraryId =
-        LibraryId { lbid_modn :: ! Text -- | Module Name
-                  , lbid_rcid :: ! Int16 -- | Record Identifier 
-                  , lbid_expp :: ! Text -- | Exchange Purpose 
-                  , lbid_ptyp :: ! Text -- | Product Type 
-                  , lbid_esid :: ! Int -- | Exchange Set Identification Number 
-                  , lbid_edtn :: ! Float -- | Edition Number
-                  , lbid_codt :: ! Day -- | Compilation Date of Exchange Set
-                  , lbid_coti :: ! DiffTime -- | Compilation Time of Exchange Set
-                  , lbid_vrdt :: ! Day -- | Library-Profile Versions Date
-                  , lbid_prof :: ! Text -- | Library Application Profile
-                  , lbid_ocdt :: ! Day -- | Date of Version of applied Object Catalogue
-                  , lbid_comt :: ! Text -- | Comment
-
+        LibraryId { lbid_modn :: ! Text --  Module Name
+                  , lbid_rcid :: ! Int16 --  Record Identifier 
+                  , lbid_expp :: ! Text --  Exchange Purpose 
+                  , lbid_ptyp :: ! Text --  Product Type 
+                  , lbid_esid :: ! Int --  Exchange Set Identification Number 
+                  , lbid_edtn :: ! Float --  Edition Number
+                  , lbid_codt :: ! Day --  Compilation Date of Exchange Set
+                  , lbid_coti :: ! DiffTime --  Compilation Time of Exchange Set
+                  , lbid_vrdt :: ! Day --  Library-Profile Versions Date
+                  , lbid_prof :: ! Text --  Library Application Profile
+                  , lbid_ocdt :: ! Day --  Date of Version of applied Object Catalogue
+                  , lbid_comt :: ! Text --  Comment
                   } deriving (Show, Eq)
     module_parser = do
       rcid' <- fmap (read . T.unpack) $ parseLine "0001" (take 5)
