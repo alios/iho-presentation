@@ -4,13 +4,14 @@
 module Data.IHO.S52.Types.LookupTable
     ( LookupTable (..)
     , Record (..)
+    , FTYP (..)
+    , RPRI (..)
+    , TNAM (..)
     ) where
 
 import Prelude hiding (take, takeWhile)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Int
 import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
@@ -18,9 +19,6 @@ import Data.IHO.S52.Types.Helper
 
 
 data LookupTable
-
-type LookupMap = Map Text Text
-
 
 parseI :: Parser Text
 parseI = parseI' []
@@ -42,16 +40,57 @@ parseInstr is = do
   else parseInstr (is ++ [i])
 
 
+data FTYP = Area | Point | Line deriving (Eq, Show)
+
+parseFTYP :: Parser FTYP
+parseFTYP = do
+  ftyp <- satisfy $ inClass "ALP"
+  return $ case ftyp of
+             'A' -> Area
+             'L' -> Line
+             'P' -> Point
+             _ -> error "unknown FTYP"
+
+data TNAM = PLAIN_BOUNDARIES | SYMBOLIZED_BOUNDARIES
+          | LINES
+          | SIMPLIFIED | PAPER_CHART
+            deriving (Show, Eq)
+
+data RPRI = OnTopOfRadar | SupressedByRadar deriving (Eq, Show)
+
+tnamP t = try $ do _ <- string $ T.pack . show $ t ; return t
+          
+
+parseTNAM :: FTYP -> Parser TNAM
+parseTNAM Area = 
+    choice  [ tnamP PLAIN_BOUNDARIES                
+            , tnamP SYMBOLIZED_BOUNDARIES
+            ]
+parseTNAM Line = choice [ tnamP LINES]
+parseTNAM Point = 
+    choice  [ tnamP SIMPLIFIED
+            , tnamP PAPER_CHART
+            ]
+
+parseRPRI :: Parser RPRI
+parseRPRI = do
+  rpri <- satisfy $ inClass "OS"
+  return $ case rpri of
+             'O' -> OnTopOfRadar
+             'S' -> SupressedByRadar
+             _ -> error "unknown RPRI"
+
+
 instance Module LookupTable where
     data Record LookupTable = 
         LookupTableEntry { lupt_modn :: ! Text
                          , lupt_rcid :: ! Int16
                          , lupt_stat :: ! Text
                          , lupt_obcl :: ! Text
-                         , lupt_ftyp :: ! Char
+                         , lupt_ftyp :: ! FTYP
                          , lupt_dpri :: ! Int16
-                         , lupt_rpri :: ! Char
-                         , lupt_tnam :: ! Text
+                         , lupt_rpri :: ! RPRI
+                         , lupt_tnam :: ! TNAM
                          , lupt_attc :: ! [(Text, Text)]
                          , lupt_inst :: ! [Text]
                          , lupt_disc :: ! Text
@@ -66,10 +105,10 @@ instance Module LookupTable where
                        rcid <- parseInt16
                        stat <- take 3
                        obcl <- take 6
-                       ftyp <- satisfy $ inClass "ALP"
+                       ftyp <- parseFTYP
                        dpri <- parseInt16
-                       rpri <- satisfy $ inClass "OS"
-                       tnam <- varString
+                       rpri <- parseRPRI
+                       tnam <- parseTNAM ftyp
                        return (modn, rcid, stat, obcl, ftyp, dpri, rpri, tnam)
       attc <- parseLine "ATTC" $ many' $ do
                               attl <- take 6
