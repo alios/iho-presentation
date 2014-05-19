@@ -36,6 +36,9 @@ instance Module LibraryId where
                   , lbid_ocdt :: ! Day --  Date of Version of applied Object Catalogue
                   , lbid_comt :: ! Text --  Comment
                   } deriving (Show, Eq)
+    module_modn = lbid_modn
+    module_rcid = lbid_rcid
+    module_stat = error "stat is undefined for LBID records"
     module_parser = do
       rcid' <- fmap (read . T.unpack) $ parseLine "0001" (take 5)
       (modn, rcid, expp, ptyp, esid, edtn, codt, coti,vrdt, prof, ocdt, comt) <-

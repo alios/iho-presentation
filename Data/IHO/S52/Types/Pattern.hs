@@ -43,10 +43,7 @@ data PatternSpacing =
 
 parsePatternSpacing :: Parser PatternSpacing
 parsePatternSpacing = do
-  df <- choice
-       [ try $ string "STG"
-       , try $ string "LIN"
-       ]
+  df <- take 3
   return $ case df of
              "STG" -> ConstantSpace
              "LIN" -> ScaleDependentPattern
@@ -75,6 +72,9 @@ instance Module Pattern where
                      , patt_pbtm :: ! [Text]
                      , patt_pvct :: ! [[Text]]
                      } deriving (Show, Eq)
+    module_modn = patt_modn
+    module_rcid = patt_rcid
+    module_stat = patt_stat
     module_parser = do
       rcid' <- parseLine "0001" (take 5)
       (modn, rcid, stat) <-
@@ -103,18 +103,12 @@ instance Module Pattern where
                             k <- anyChar
                             v <- take 5
                             return (k,v)
-
       pbtm <- case padf of
                RasterDrawing -> many' $ parseLine "PBTM" $ varString
                VectorDrawing -> return []
       pvct <- case padf of
                RasterDrawing -> return []
-               VectorDrawing -> many' $ parseLine "PVCT" $ many' $ do
-                                 c <- takeWhile $ notInClass ";"
-                                 skip $ inClass ";"
-                                 return c
-
-
+               VectorDrawing -> many' $ parseVectorInstructions "PVCT"
       _ <- parseLine "****" endOfInput  
       return $ PatternEntry
                  { patt_modn = modn 
@@ -148,3 +142,4 @@ instance VectorRecord Pattern where
     vector_color_refs = Map.fromList . patt_pcrf 
     vector_xpo = patt_pxpo
     vector_vct = Set.fromList . patt_pvct
+    vector_name = patt_panm

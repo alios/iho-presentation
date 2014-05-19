@@ -34,6 +34,9 @@ instance Module LineStyle where
                        , lnst_lcrf :: ! [(Char, Text)]
                        , lnst_lvct :: ! [[Text]]
                        } deriving (Show, Eq)
+    module_modn = lnst_modn
+    module_rcid = lnst_rcid
+    module_stat = lnst_stat
     module_parser = do
       rcid' <- parseLine "0001" (take 5)
       (modn, rcid, stat) <-
@@ -57,11 +60,7 @@ instance Module LineStyle where
                             k <- anyChar
                             v <- take 5
                             return (k,v)
-      lvct <- many' $ parseLine "LVCT" $ many' $ do
-                            c <- takeWhile $ notInClass ";"
-                            skip $ inClass ";"
-                            return c
-      
+      lvct <- many' $ parseVectorInstructions "LVCT"      
       _ <- parseLine "****" endOfInput  
       return $ LineStyleEntry
                  { lnst_modn = modn 
@@ -86,5 +85,5 @@ instance VectorRecord LineStyle where
     vector_color_refs = Map.fromList . lnst_lcrf 
     vector_xpo = lnst_lxpo
     vector_vct = Set.fromList . lnst_lvct
-
+    vector_name = lnst_linm
                                   

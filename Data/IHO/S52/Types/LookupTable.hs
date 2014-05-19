@@ -77,7 +77,9 @@ instance Module LookupTable where
                          , lupt_disc :: ! Text
                          , lupt_lucm :: ! Text
                          } deriving (Show, Eq)
-
+    module_modn = lupt_modn
+    module_rcid = lupt_rcid
+    module_stat = lupt_stat
     module_parser = do
       rcid' <- parseLine "0001" (take 5)
       (modn, rcid, stat, obcl, ftyp, dpri, rpri, tnam) <-

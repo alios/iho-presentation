@@ -101,3 +101,10 @@ skipSpaces = do
   _ <- many' $ try $ skip $ \c -> isHorizontalSpace c || inClass "\r\n" c 
   return ()
 
+
+parseVectorInstructions :: Text -> Parser [Text]
+parseVectorInstructions t = 
+    parseLine t $ many' $ do
+      c <- takeWhile $ notInClass ";"
+      skip $ inClass ";"
+      return c

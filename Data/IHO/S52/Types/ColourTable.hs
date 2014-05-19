@@ -39,6 +39,10 @@ instance Module ColourTable where
                    , cols_ctus :: ! Text
                    , cols_entries :: ! ColourMap
                    } deriving (Show, Eq)
+    module_modn = cols_modn
+    module_rcid = cols_rcid
+    module_stat = cols_stat
+
     module_parser = do 
       rcid' <- parseLine "0001" (take 5)
       (modn, rcid, stat, ctus) <-

@@ -35,6 +35,9 @@ instance Module Symbol where
                     , symb_sbtm :: ! [Text]
                     , symb_svct :: ! [[VectorInstruction]]
                     } deriving (Eq, Show)
+    module_modn = symb_modn
+    module_rcid = symb_rcid
+    module_stat = symb_stat
     module_parser = do
       rcid' <- parseLine "0001" (take 5)
       (modn, rcid, stat) <-
@@ -96,3 +99,4 @@ instance VectorRecord Symbol where
     vector_color_refs = Map.fromList . symb_scrf
     vector_xpo = symb_sxpo
     vector_vct = Set.fromList . symb_svct
+    vector_name = symb_synm

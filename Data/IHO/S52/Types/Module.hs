@@ -12,19 +12,22 @@ import Data.Text (Text)
 class Module m where
     data Record m :: *
     module_parser :: Parser (Record m)
-
+    module_modn :: Record m -> Text
+    module_rcid :: Record m -> Int16
+    module_stat :: Record m -> Text
 
 type VectorInstruction = Text
 type Vector2 = (Int16, Int16)
 
 class (Module m) => VectorRecord m where
+    vector_name :: Record m -> Text
     vector_pos :: Record m -> Vector2
     vector_box_size :: Record m -> Vector2
     vector_box_pos :: Record m -> Vector2
     vector_color_refs :: Record m -> Map Char Text
     vector_xpo :: Record m -> Text
     vector_vct :: Record m -> Set [VectorInstruction]
-
+                 
 
 data DrawingType = VectorDrawing | RasterDrawing
                 deriving (Eq, Show)
