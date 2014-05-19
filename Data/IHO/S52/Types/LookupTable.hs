@@ -20,25 +20,6 @@ import Data.IHO.S52.Types.Helper
 
 data LookupTable
 
-parseI :: Parser Text
-parseI = parseI' []
-
-parseI' :: String -> Parser Text
-parseI' is = do
-  eof <- atEnd
-  if (eof) then return $ T.pack is
-  else do
-    i <- anyChar
-    if (i == ';') then return $ T.pack is
-    else parseI' (is ++ [i])
-    
-parseInstr :: [Text] -> Parser [Text]
-parseInstr is = do
-  i <- parseI
-  eof <- atEnd
-  if(eof) then return (is ++ [i])
-  else parseInstr (is ++ [i])
-
 
 data FTYP = Area | Point | Line deriving (Eq, Show)
 
