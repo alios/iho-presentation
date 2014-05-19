@@ -4,6 +4,7 @@
 module Data.IHO.S52.Types.Pattern
     ( Pattern (..)
     , Record (..)
+    , patt_min_space
     ) where
 
 import Prelude hiding (take, takeWhile)
@@ -15,9 +16,42 @@ import Data.Int
 import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
 import Data.IHO.S52.Types.Helper
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 
 data Pattern
+
+data FillPattern = 
+    StaggeredPattern | LinearPattern
+    deriving (Eq, Show)
+
+parseFillPattern :: Parser FillPattern
+parseFillPattern = do
+  df <- choice
+       [ try $ string "STG"
+       , try $ string "LIN"
+       ]
+  return $ case df of
+             "STG" -> StaggeredPattern
+             "LIN" -> LinearPattern
+             _ -> error "unknown FillPattern"
+
+data PatternSpacing = 
+    ConstantSpace | ScaleDependentPattern
+    deriving (Eq, Show)
+
+parsePatternSpacing :: Parser PatternSpacing
+parsePatternSpacing = do
+  df <- choice
+       [ try $ string "STG"
+       , try $ string "LIN"
+       ]
+  return $ case df of
+             "STG" -> ConstantSpace
+             "LIN" -> ScaleDependentPattern
+             _ -> error "unknown PatternSpacing"
+
 
 instance Module Pattern where
     data Record Pattern =
@@ -25,9 +59,9 @@ instance Module Pattern where
                      , patt_rcid :: ! Int16
                      , patt_stat :: ! Text
                      , patt_panm :: ! Text
-                     , patt_padf :: ! Char
-                     , patt_patp :: ! Text
-                     , patt_pasp :: ! Text
+                     , patt_padf :: ! DrawingType
+                     , patt_patp :: ! FillPattern
+                     , patt_pasp :: ! PatternSpacing
                      , patt_pami :: ! Int16
                      , patt_pama :: ! Int16
                      , patt_pacl :: ! Int16                             
@@ -52,9 +86,9 @@ instance Module Pattern where
       (panm, padf, patp, pasp, pami, pama, pacl, parw, pahl, pavl, pbxc, pbxr) <- 
           parseLine "PATD" $
                     do panm <- take 8
-                       padf <- satisfy $ inClass "VR"
-                       patp <- take 3
-                       pasp <- take 3
+                       padf <- parseDrawingType
+                       patp <- parseFillPattern
+                       pasp <- parsePatternSpacing
                        pami <- parseInt16
                        pama <- parseInt16
                        pacl <- parseInt16
@@ -69,11 +103,16 @@ instance Module Pattern where
                             k <- anyChar
                             v <- take 5
                             return (k,v)
-      pbtm <- many' $ parseLine "PBTM" $ varString
-      pvct <- many' $ parseLine "PVCT" $ many' $ do
-                            c <- takeWhile $ notInClass ";"
-                            skip $ inClass ";"
-                            return c
+
+      pbtm <- case padf of
+               RasterDrawing -> many' $ parseLine "PBTM" $ varString
+               VectorDrawing -> return []
+      pvct <- case padf of
+               RasterDrawing -> return []
+               VectorDrawing -> many' $ parseLine "PVCT" $ many' $ do
+                                 c <- takeWhile $ notInClass ";"
+                                 skip $ inClass ";"
+                                 return c
 
 
       _ <- parseLine "****" endOfInput  
@@ -98,3 +137,14 @@ instance Module Pattern where
                  , patt_pbtm = pbtm
                  , patt_pvct = pvct
                  }
+
+patt_min_space :: Record Pattern -> (Int16, Int16)
+patt_min_space s = ( patt_pami s, patt_pama s)
+ 
+instance VectorRecord Pattern where
+    vector_pos s = (patt_pacl s, patt_parw s)
+    vector_box_size s = (patt_pahl s, patt_pavl s)
+    vector_box_pos s = (patt_pbxc s, patt_pbxr s)
+    vector_color_refs = Map.fromList . patt_pcrf 
+    vector_xpo = patt_pxpo
+    vector_vct = Set.fromList . patt_pvct

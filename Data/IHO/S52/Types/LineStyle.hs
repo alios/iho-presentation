@@ -8,13 +8,12 @@ module Data.IHO.S52.Types.LineStyle
 
 import Prelude hiding (take, takeWhile)
 import Data.Text (Text)
-import qualified Data.Text as T
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Int
 import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
 import Data.IHO.S52.Types.Helper
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 
 data LineStyle
@@ -33,7 +32,6 @@ instance Module LineStyle where
                        , lnst_lbxr :: ! Int16    
                        , lnst_lxpo :: ! Text
                        , lnst_lcrf :: ! [(Char, Text)]
-                       , lnst_lbtm :: ! [Text]
                        , lnst_lvct :: ! [[Text]]
                        } deriving (Show, Eq)
     module_parser = do
@@ -59,7 +57,6 @@ instance Module LineStyle where
                             k <- anyChar
                             v <- take 5
                             return (k,v)
-      lbtm <- many' $ parseLine "LBTM" $ varString
       lvct <- many' $ parseLine "LVCT" $ many' $ do
                             c <- takeWhile $ notInClass ";"
                             skip $ inClass ";"
@@ -79,6 +76,15 @@ instance Module LineStyle where
                  , lnst_lbxr = lbxr
                  , lnst_lxpo = lxpo
                  , lnst_lcrf = lcrf
-                 , lnst_lbtm = lbtm
                  , lnst_lvct = lvct
                  }
+
+instance VectorRecord LineStyle where
+    vector_pos s = (lnst_licl s, lnst_lirw s)
+    vector_box_size s = (lnst_lihl s, lnst_livl s)
+    vector_box_pos s = (lnst_lbxc s, lnst_lbxr s)
+    vector_color_refs = Map.fromList . lnst_lcrf 
+    vector_xpo = lnst_lxpo
+    vector_vct = Set.fromList . lnst_lvct
+
+                                  

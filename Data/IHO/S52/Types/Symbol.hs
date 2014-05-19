@@ -4,9 +4,6 @@
 module Data.IHO.S52.Types.Symbol
     ( Symbol (..)
     , Record (..)
-    , symb_pivot
-    , symb_bounding_size
-    , symb_bounding_pos
     ) where
 
 import Prelude hiding (take, takeWhile)
@@ -15,21 +12,10 @@ import Data.Int
 import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
 import Data.IHO.S52.Types.Helper
-
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 data Symbol
-
-data SYDF = VectorSymbol | RasterSymbol
-                deriving (Eq, Show)
-
-parseSYDF :: Parser SYDF
-parseSYDF = do
-  sydf <- satisfy $ inClass "VR"
-  return $ case sydf of
-             'V' -> VectorSymbol
-             'R' -> RasterSymbol
-             _ -> error "unknown SYDF"
-
 
 instance Module Symbol where
     data Record Symbol =
@@ -37,7 +23,7 @@ instance Module Symbol where
                     , symb_rcid :: ! Int16
                     , symb_stat :: ! Text
                     , symb_synm :: ! Text
-                    , symb_sydf :: ! SYDF
+                    , symb_sydf :: ! DrawingType
                     , symb_sycl :: ! Int16                             
                     , symb_syrw :: ! Int16
                     , symb_syhl :: ! Int16
@@ -47,7 +33,7 @@ instance Module Symbol where
                     , symb_sxpo :: ! Text
                     , symb_scrf :: ! [(Char, Text)]
                     , symb_sbtm :: ! [Text]
-                    , symb_svct :: ! [[Text]]
+                    , symb_svct :: ! [[VectorInstruction]]
                     } deriving (Eq, Show)
     module_parser = do
       rcid' <- parseLine "0001" (take 5)
@@ -60,7 +46,7 @@ instance Module Symbol where
       (synm, sydf, sycl, syrw, syhl, syvl, sbxc, sbxr) <- 
           parseLine "SYMD" $
                     do synm <- take 8
-                       sydf <- parseSYDF
+                       sydf <- parseDrawingType
                        sycl <- parseInt16
                        syrw <- parseInt16
                        syhl <- parseInt16
@@ -75,12 +61,14 @@ instance Module Symbol where
                             return (k,v)
              
       sbtm <- case sydf of
-               RasterSymbol -> many' $ parseLine "SBTM" $ varString
-               VectorSymbol -> return []
-      svct <- many' $ parseLine "SVCT" $ many' $ do
-                            c <- takeWhile $ notInClass ";"
-                            skip $ inClass ";"
-                            return c
+               RasterDrawing -> many' $ parseLine "SBTM" $ varString
+               VectorDrawing -> return []
+      svct <- case sydf of
+               RasterDrawing -> return []
+               VectorDrawing ->  many' $ parseLine "SVCT" $ many' $ do
+                                  c <- takeWhile $ notInClass ";"
+                                  skip $ inClass ";"
+                                  return c
 
       _ <- parseLine "****" endOfInput  
       return $ SymbolEntry
@@ -101,10 +89,10 @@ instance Module Symbol where
                  , symb_svct = svct
                  }
 
-
-symb_pivot :: Record Symbol -> (Int16, Int16)
-symb_pivot s = (symb_sycl s, symb_syrw s)
-symb_bounding_size :: Record Symbol -> (Int16, Int16)
-symb_bounding_size s = (symb_syhl s, symb_syvl s)
-symb_bounding_pos :: Record Symbol -> (Int16, Int16)
-symb_bounding_pos s = (symb_sbxc s, symb_sbxr s)
+instance VectorRecord Symbol where
+    vector_pos s = (symb_sycl s, symb_syrw s)
+    vector_box_size s =  (symb_syhl s, symb_syvl s)
+    vector_box_pos s = (symb_sbxc s, symb_sbxr s)
+    vector_color_refs = Map.fromList . symb_scrf
+    vector_xpo = symb_sxpo
+    vector_vct = Set.fromList . symb_svct
