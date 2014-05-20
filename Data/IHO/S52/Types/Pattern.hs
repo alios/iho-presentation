@@ -4,6 +4,8 @@
 module Data.IHO.S52.Types.Pattern
     ( Pattern (..)
     , Record (..)
+    , FillPattern (..)
+    , PatternSpacing (..)
     , patt_min_space
     ) where
 
@@ -15,9 +17,10 @@ import qualified Data.Map as Map
 import Data.Int
 import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
+import Data.IHO.S52.Types.Vector
 import Data.IHO.S52.Types.Helper
+
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 
 data Pattern
@@ -35,7 +38,7 @@ parseFillPattern = do
   return $ case df of
              "STG" -> StaggeredPattern
              "LIN" -> LinearPattern
-             _ -> error "unknown FillPattern"
+             s -> error $ "unknown FillPattern" ++ T.unpack s
 
 data PatternSpacing = 
     ConstantSpace | ScaleDependentPattern
@@ -45,9 +48,9 @@ parsePatternSpacing :: Parser PatternSpacing
 parsePatternSpacing = do
   df <- take 3
   return $ case df of
-             "STG" -> ConstantSpace
-             "LIN" -> ScaleDependentPattern
-             _ -> error "unknown PatternSpacing"
+             "CON" -> ConstantSpace
+             "SCL" -> ScaleDependentPattern
+             s -> error $ "unknown PatternSpacing: " ++ T.unpack s
 
 
 instance Module Pattern where
@@ -70,7 +73,7 @@ instance Module Pattern where
                      , patt_pxpo :: ! Text
                      , patt_pcrf :: ! [(Char, Text)]
                      , patt_pbtm :: ! [Text]
-                     , patt_pvct :: ! [[Text]]
+                     , patt_pvct :: ! [[VectorInstruction]]
                      } deriving (Show, Eq)
     module_modn = patt_modn
     module_rcid = patt_rcid
@@ -108,7 +111,7 @@ instance Module Pattern where
                VectorDrawing -> return []
       pvct <- case padf of
                RasterDrawing -> return []
-               VectorDrawing -> many' $ parseVectorInstructions "PVCT"
+               VectorDrawing -> many' $ parseLine "PVCT" $ parseInstructions
       _ <- parseLine "****" endOfInput  
       return $ PatternEntry
                  { patt_modn = modn 
@@ -141,5 +144,5 @@ instance VectorRecord Pattern where
     vector_box_pos s = (patt_pbxc s, patt_pbxr s)
     vector_color_refs = Map.fromList . patt_pcrf 
     vector_xpo = patt_pxpo
-    vector_vct = Set.fromList . patt_pvct
+    vector_vct = patt_pvct
     vector_name = patt_panm

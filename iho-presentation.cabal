@@ -10,7 +10,7 @@ name:                iho-presentation
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.4.0
+version:             0.4.1
 
 -- A short (one-line) description of the package.
 synopsis:            an haskell implementation of IHO S-52
@@ -53,6 +53,7 @@ library
   -- Modules exported by the library.
   exposed-modules:    Data.IHO.S52.Types
                       Data.IHO.S52.Types.Module
+                      Data.IHO.S52.Types.Vector
                       Data.IHO.S52.Types.LBID
                       Data.IHO.S52.Types.ColourTable
                       Data.IHO.S52.Types.LookupTable
@@ -75,7 +76,8 @@ library
                        attoparsec >= 0.11,
                        text >= 1.0,
                        prizm,
-                       css-text
+                       css-text,
+                       blaze-svg
 
  
   -- Directories containing source files.

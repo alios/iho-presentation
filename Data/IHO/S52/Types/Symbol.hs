@@ -11,9 +11,9 @@ import Data.Text (Text)
 import Data.Int
 import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
+import Data.IHO.S52.Types.Vector
 import Data.IHO.S52.Types.Helper
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 data Symbol
 
@@ -68,11 +68,7 @@ instance Module Symbol where
                VectorDrawing -> return []
       svct <- case sydf of
                RasterDrawing -> return []
-               VectorDrawing ->  many' $ parseLine "SVCT" $ many' $ do
-                                  c <- takeWhile $ notInClass ";"
-                                  skip $ inClass ";"
-                                  return c
-
+               VectorDrawing ->  many' $ parseLine "SVCT" $ parseInstructions
       _ <- parseLine "****" endOfInput  
       return $ SymbolEntry
                  { symb_modn = modn 
@@ -98,5 +94,5 @@ instance VectorRecord Symbol where
     vector_box_pos s = (symb_sbxc s, symb_sbxr s)
     vector_color_refs = Map.fromList . symb_scrf
     vector_xpo = symb_sxpo
-    vector_vct = Set.fromList . symb_svct
+    vector_vct = symb_svct
     vector_name = symb_synm
