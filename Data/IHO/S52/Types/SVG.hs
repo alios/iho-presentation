@@ -21,6 +21,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.IHO.S52.Types.Symbol
 import Data.ByteString.Lazy (ByteString)
+import Text.Blaze.Internal (text)
 
 class VectorInterpreter i where
     data InterpreterState i :: *
@@ -28,13 +29,30 @@ class VectorInterpreter i where
     evalI :: (VectorRecord re) => Record re -> VectorInstruction -> State (InterpreterState i) () 
     finalizeI :: (VectorRecord re) => Record re -> InterpreterState i -> InterpreterState i
 
-svgInterpreter r is = 
-    let ma = do 
-          _ <- sequence $ map (evalI r) is         
-          fmap (st_outputBuffer . finalizeI r) get
-    in evalState ma defState
-  
---runState (evalI i) defState
+
+renderIs :: (VectorRecord re) => Record re -> [VectorInstruction] -> Svg
+renderIs r is = 
+    let (_, st) = runState (sequence $ map (evalI r) is) defState
+        ob = st_outputBuffer $ finalizeI r st
+        (bx,by) = vector_box_pos r
+        (bw,bh) = vector_box_size r
+        rc x' = fromString $ printf "%0.1fmm" ((0.01 :: Float) * (fromInteger . toInteger $ x'))
+        ax = A.x $ rc bx
+        ay = A.y $ rc by
+        aw = A.width $ rc bw
+        ah = A.height $ rc bh 
+    in g ! ax ! ay ! aw ! ah $ do 
+      _ <- sequence ob
+      return ()
+
+svgInterpreter :: VectorRecord re => Record re -> Svg
+svgInterpreter r = 
+    let iis = vector_vct r
+        cl = class_ $ fromString . T.unpack $ vector_name r
+    in g ! cl $ do
+
+      _ <- sequence $ map (renderIs r) iis
+      return ()
 
 
 
@@ -67,38 +85,46 @@ instance VectorInterpreter SVG where
           None -> st
           LineMode -> mkPolyLine re st
 
-    evalI re (SetPenColour c) = modify (\st -> st { st_penColour = c})
-    evalI re (SetPenTransparency t) = modify (\st -> st { st_penTransparency = t})
-    evalI re (SetPenWidth w) = modify (\st -> st { st_penWidth = w } )
+    evalI _ (SetPenColour col) = modify (\st' -> st' { st_penColour = col})
+    evalI _ (SetPenTransparency pt) = modify (\st' -> st' { st_penTransparency = pt})
+    evalI _ (SetPenWidth w) = modify (\st' -> st' { st_penWidth = w } )
     evalI re (PenUp p) = do
       st <- get
       case (st_mode st) of
         None -> return ()
         LineMode -> modify $ mkPolyLine re
-      modify (\st -> st { st_penPos = p, st_penDown = False })
-    evalI re (PenDraw p) = do
+      modify (\st' -> st' { st_penPos = p, st_penDown = False })
+    evalI _ (PenDraw p) = do
       st <- get
       case (st_mode st) of
-        None -> modify(\st -> st { st_penPos = p
+        None -> modify(\st' -> st' { st_penPos = p
                                , st_lineBuffer = [st_penPos st, p]
                                , st_mode = LineMode 
                                })
-        LineMode -> modify(\st -> st { st_penPos = p
+        LineMode -> modify(\st' -> st' { st_penPos = p
                                    , st_lineBuffer = st_lineBuffer st ++ [p]
                                    })
+    evalI _ (Circle rad) = 
+        let csvg = circle
+        in modify (\st' -> st' { st_outputBuffer = csvg : st_outputBuffer st' })
+    evalI _ (PolygonMode pm) = return ()
+    evalI _ (OutlinePolygon) = return ()
+    evalI _ (FillPolygon) = return ()
+    evalI _ (SymbolCall symb ori) = return ()
 
 
---mkPolyLine :: InterpreterState SVG -> InterpreterState SVG
+strokeWidthA :: Float -> AttributeValue
+strokeWidthA = fromString . printf "%0.1fmm;"
+
 mkPolyLine re st = 
-    let ln = polyline ! sty ! ps ! cl
+    let ln = polyline ! pw ! ps ! cl
         ps = (A.points $ showV2s . st_lineBuffer $ st)
-        sty = (A.style . fromString $ pw )
-        pw = printf "stroke-width: %0.1fmm" (w :: Float)
+        pw = strokeWidth $ strokeWidthA w
         w = (0.3 * (fromInteger . toInteger . st_penWidth $ st))
-        c = case (Map.lookup (st_penColour st) (vector_color_refs re)) of
+        col = case (Map.lookup (st_penColour st) (vector_color_refs re)) of
               Nothing -> error $ printf "unknown penColour: %c" (st_penColour st)
-              Just col -> col
-        cl = (A.class_ $ fromString $ T.unpack c) 
+              Just col' -> col'
+        cl = (A.class_ $ fromString $ T.unpack col) 
         ob = st_outputBuffer st ++ if ((length .st_lineBuffer $ st) >= 2)
                                    then [ln] 
                                    else error "PenUp with only 1 entry in linebuffer"
@@ -111,15 +137,13 @@ showV2s' :: [Vector2] -> String
 showV2s' = concat . intersperse " "  . map showV2
 
 showV2 :: Vector2 -> String
-showV2 (x,y) = concat [ show x, ",", show y]
+showV2 (vx,vy) = concat [ show vx, ",", show vy]
 
 
 
 renderR :: VectorRecord m =>
-          Record m -> [ByteString]
-renderR re = 
-    let rm is = map renderMarkup $ svgInterpreter re $ is
-    in concat $ map rm $ vector_vct re
+          Record m -> ByteString
+renderR re = renderMarkup $ svgInterpreter re
 
 
 t1_is = renderR  trec
