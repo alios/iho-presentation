@@ -2,6 +2,7 @@
 
 module Data.IHO.S52.Types
     ( module Data.IHO.S52.Types.Module
+    , module Data.IHO.S52.Types.Vector
     , module Data.IHO.S52.Types.LBID
     , module Data.IHO.S52.Types.ColourTable      
     , module Data.IHO.S52.Types.LookupTable      
@@ -15,6 +16,7 @@ module Data.IHO.S52.Types
 import Data.Attoparsec.Text
 
 import Data.IHO.S52.Types.Module
+import Data.IHO.S52.Types.Vector
 import Data.IHO.S52.Types.LBID
 import Data.IHO.S52.Types.ColourTable
 import Data.IHO.S52.Types.LookupTable

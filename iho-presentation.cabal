@@ -10,7 +10,7 @@ name:                iho-presentation
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.4.1
+version:             0.4.3
 
 -- A short (one-line) description of the package.
 synopsis:            an haskell implementation of IHO S-52
@@ -61,6 +61,7 @@ library
                       Data.IHO.S52.Types.Symbol
                       Data.IHO.S52.Types.LineStyle
                       Data.IHO.S52.CSS
+                      Data.IHO.S52.Types.SVG
   
   -- Modules included in this library but not exported.
   other-modules:      Data.IHO.S52.Types.Helper
@@ -77,7 +78,10 @@ library
                        text >= 1.0,
                        prizm,
                        css-text,
-                       blaze-svg
+                       blaze-svg,
+                       blaze-markup,
+                       mtl,
+                       bytestring >= 0.10
 
  
   -- Directories containing source files.

@@ -15,7 +15,6 @@ import Data.Int
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Data.Text as T
-
 import Data.IHO.S52.Types.Module
 
 type Vector2 = (Int16, Int16)
@@ -28,6 +27,9 @@ class (Module m) => VectorRecord m where
     vector_color_refs :: Record m -> Map Char Text
     vector_xpo :: Record m -> Text
     vector_vct :: Record m -> [[VectorInstruction]]
+
+
+
 
 
 
@@ -114,6 +116,8 @@ parseSymbolCall = do
                                '2' -> LastPenMove
                                '3' -> Tangent
 
+
+parsePolygonMode :: Parser VectorInstruction
 parsePolygonMode = parseInstruction' "PM" PolygonMode parsePolygonMode'              
 parsePolygonMode' = do
   m <- satisfy $ inClass "123"
@@ -147,8 +151,8 @@ t5 = "SPA;SW2;ST0;PU603,617;PM0;PD856,617;PD856,870;PD605,870;PD603,617;PM2;FP;"
 noanchor = [t5]--t1,t2,t3,t4,t5]
 t' = map (aa) noanchor           
 --t = map evalInstructions t'
-
-
-    
 aa t = either fail id (parseOnly parseInstructions t)
+
+
+
 
