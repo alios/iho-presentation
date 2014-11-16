@@ -1,13 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.IHO.S52.Types.SVG where
+module Data.IHO.S52.SVG where
 
 import Data.IHO.S52.Types.Vector
 import Data.IHO.S52.Types.Module
 
 import Text.Blaze.Svg
 import Text.Blaze.Svg11
+import Text.Blaze.Internal
 import Text.Blaze.Svg11.Attributes as A
 import Data.Int
 import Data.List
@@ -30,30 +31,38 @@ class VectorInterpreter i where
     finalizeI :: (VectorRecord re) => Record re -> InterpreterState i -> InterpreterState i
 
 
+
+
+renderIIs :: (VectorRecord re) => Record re -> [[VectorInstruction]] -> Svg
+renderIIs r iis = 
+    let (_, st) = undefined --runState (sequence $ map (map (evalI r) iis) defState)
+        ob = st_outputBuffer $ finalizeI r st
+        outsvg = do
+          _ <- sequence ob
+          return ()          
+    in do
+      outsvg
+
 renderIs :: (VectorRecord re) => Record re -> [VectorInstruction] -> Svg
 renderIs r is = 
     let (_, st) = runState (sequence $ map (evalI r) is) defState
         ob = st_outputBuffer $ finalizeI r st
-        (bx,by) = vector_box_pos r
-        (bw,bh) = vector_box_size r
-        rc x' = fromString $ printf "%0.1fmm" ((0.01 :: Float) * (fromInteger . toInteger $ x'))
-        ax = A.x $ rc bx
-        ay = A.y $ rc by
-        aw = A.width $ rc bw
-        ah = A.height $ rc bh 
-    in g ! ax ! ay ! aw ! ah $ do 
-      _ <- sequence ob
-      return ()
+        outsvg = do
+          _ <- sequence ob
+          return ()          
+    in do
+      outsvg
+
+-- (fromString "opacity:0;")
 
 svgInterpreter :: VectorRecord re => Record re -> Svg
 svgInterpreter r = 
     let iis = vector_vct r
         cl = class_ $ fromString . T.unpack $ vector_name r
     in g ! cl $ do
-
-      _ <- sequence $ map (renderIs r) iis
+      _ <- renderIs r $ concat iis
+--      _ <- sequence $ map (renderIs r) iis
       return ()
-
 
 
 data SVG
@@ -71,7 +80,7 @@ instance VectorInterpreter SVG where
              , st_lineBuffer :: [Vector2]
              , st_outputBuffer :: [Svg]
              } 
-    defState = IS { st_penColour = ' '
+    defState = IS { st_penColour = undefined
                   , st_penWidth = 1
                   , st_penTransparency = 0
                   , st_penPos = (0,0)
@@ -98,29 +107,48 @@ instance VectorInterpreter SVG where
       st <- get
       case (st_mode st) of
         None -> modify(\st' -> st' { st_penPos = p
-                               , st_lineBuffer = [st_penPos st, p]
-                               , st_mode = LineMode 
-                               })
+                                 , st_lineBuffer = [st_penPos st, p]
+                                 , st_mode = LineMode })
         LineMode -> modify(\st' -> st' { st_penPos = p
-                                   , st_lineBuffer = st_lineBuffer st ++ [p]
-                                   })
-    evalI _ (Circle rad) = 
-        let csvg = circle
-        in modify (\st' -> st' { st_outputBuffer = csvg : st_outputBuffer st' })
+                                     , st_lineBuffer = st_lineBuffer st ++ [p] })
+    -- TODO not implemented yet                   
+    evalI re (Circle rad) = modify $ mkCircle re rad
     evalI _ (PolygonMode pm) = return ()
     evalI _ (OutlinePolygon) = return ()
     evalI _ (FillPolygon) = return ()
     evalI _ (SymbolCall symb ori) = return ()
 
 
-strokeWidthA :: Float -> AttributeValue
-strokeWidthA = fromString . printf "%0.1fmm;"
+floatAttrMM2 :: Float -> AttributeValue
+floatAttrMM2 = fromString . printf "%0.2fmm"
+floatAttrMM1 :: Float -> AttributeValue
+floatAttrMM1 = fromString . printf "%0.1fmm"
 
+
+mkCircle :: VectorRecord m =>
+  Record m -> Int16 -> InterpreterState SVG -> InterpreterState SVG
+mkCircle re rad st' = 
+    let rada = A.r $ fromString $ show rad
+        (x', y') = st_penPos st'
+        xa = A.cx $ fromString $ show x'
+        ya = A.cy $ fromString $ show y'
+        col = case (Map.lookup (st_penColour st') (vector_color_refs re)) of
+              Nothing -> error $ printf "unknown penColour: %c" (st_penColour st')
+              Just col' -> col'
+        cl = (A.class_ $ fromString $ T.unpack col) 
+
+        pw = strokeWidth $ fromString $ show $ 30 * st_penWidth st'
+
+        csvg = circle ! pw ! cl ! xa ! ya ! rada 
+    in st' { st_outputBuffer = csvg : st_outputBuffer st' }
+
+
+mkPolyLine :: VectorRecord m =>
+  Record m -> InterpreterState SVG -> InterpreterState SVG
 mkPolyLine re st = 
     let ln = polyline ! pw ! ps ! cl
         ps = (A.points $ showV2s . st_lineBuffer $ st)
-        pw = strokeWidth $ strokeWidthA w
-        w = (0.3 * (fromInteger . toInteger . st_penWidth $ st))
+        pw = strokeWidth $ fromString $ show $ 30 * st_penWidth st
         col = case (Map.lookup (st_penColour st) (vector_color_refs re)) of
               Nothing -> error $ printf "unknown penColour: %c" (st_penColour st)
               Just col' -> col'
@@ -146,8 +174,11 @@ renderR :: VectorRecord m =>
 renderR re = renderMarkup $ svgInterpreter re
 
 
-t1_is = renderR  trec
+t1_is = renderR  trec2
 
+
+
+trec2 = SymbolEntry {symb_modn = "SY", symb_rcid = 1425, symb_stat = "NIL", symb_synm = "ACHBRT07", symb_sydf = VectorDrawing, symb_sycl = 1264, symb_syrw = 1062, symb_syhl = 506, symb_syvl = 506, symb_sbxc = 1010, symb_sbxr = 783, symb_sxpo = "designated anchor berth for a single vessel", symb_scrf = [('A',"CHMGD")], symb_sbtm = [], symb_svct = [[SetPenColour 'A',SetPenWidth 1,PenUp (1262,783),PenDraw (1262,1004)],[SetPenColour 'A',SetPenWidth 1,PenUp (1262,1289),PenDraw (1262,1207)],[SetPenColour 'A',SetPenWidth 1,PenUp (1516,1135),PenDraw (1364,1287),PenDraw (1167,1287),PenDraw (1010,1132)],[SetPenColour 'A',SetPenWidth 1,PenUp (1261,1101),Circle 101],[SetPenColour 'A',SetPenWidth 1,PenUp (1107,937),PenDraw (1424,937)]]}
 
 trec :: Record Symbol
 trec = SymbolEntry {symb_modn = "SY", symb_rcid = 1426, symb_stat = "NIL", symb_synm = "ACHRES51", symb_sydf = VectorDrawing, symb_sycl = 981, symb_syrw = 958, symb_syhl = 1229, symb_syvl = 1304, symb_sbxc = 1621, symb_sbxr = 1471, symb_sxpo = "area where anchoring is prohibited or restricted", symb_scrf = [('A',"CHMGF")], symb_sbtm = [], symb_svct = [[SetPenColour 'A',SetPenWidth 1,PenUp (2193,1471),PenDraw (2193,1800),PenDraw (1875,1800),PenDraw (1875,1912),PenDraw (2193,1912),PenDraw (2193,2596),PenDraw (1987,2550),PenDraw (1800,2409),PenDraw (1621,2409),PenDraw (1875,2596),PenDraw (2250,2775),PenDraw (2596,2596),PenDraw (2850,2409),PenDraw (2700,2409),PenDraw (2475,2550),PenDraw (2268,2596),PenDraw (2268,1912),PenDraw (2596,1912),PenDraw (2596,1800),PenDraw (2268,1800),PenDraw (2268,1471),PenDraw (2193,1471)],[SetPenColour 'A',SetPenWidth 3,PenUp (2703,1671),PenDraw (1701,2679)]]}

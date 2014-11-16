@@ -10,11 +10,13 @@ module Data.IHO.S52.Types
     , module Data.IHO.S52.Types.Symbol    
     , module Data.IHO.S52.Types.LineStyle    
     , Library (..)
+    , libraryParser
     , parseLibrary
+    , parseLibraryIO
     ) where
-    
-import Data.Attoparsec.Text
 
+import Data.Text (Text)
+import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
 import Data.IHO.S52.Types.Vector
 import Data.IHO.S52.Types.LBID
@@ -24,8 +26,7 @@ import Data.IHO.S52.Types.Pattern
 import Data.IHO.S52.Types.Symbol
 import Data.IHO.S52.Types.LineStyle
 import Data.IHO.S52.Types.Helper
-
-import qualified Data.Text as T
+import qualified Data.Text.IO as T
     
 data Library = 
     Library { lib_lbid :: ! (Record LibraryId)
@@ -90,8 +91,8 @@ parseS52Modules' ms = do
       parseS52Modules' (m:ms)
 
 
-parseLibrary :: Parser Library
-parseLibrary = do
+libraryParser :: Parser Library
+libraryParser = do
   lbid <- module_parser
   rs <- fmap unzipS52Module parseS52Modules
   return $ Library { lib_lbid = lbid
@@ -101,4 +102,14 @@ parseLibrary = do
                    , lib_symb = symb rs
                    , lib_patt = patt rs
                    }
-                 
+
+parseLibrary :: Text -> Either String Library
+parseLibrary = parseOnly libraryParser
+
+parseLibraryIO :: FilePath -> IO Library
+parseLibraryIO f = do
+  src <- T.readFile f
+  case parseLibrary src of
+    Left err -> fail err
+    Right res' -> return res'
+

@@ -36,20 +36,27 @@ toCssColour c =
 buildColourMapEntry :: (Data.Text.Text, ColourMapEntry) -> Builder
 buildColourMapEntry (ctok, (col, name)) = 
     let c1 = Data.Text.concat [".", ctok]
-        c2 = Data.Text.concat [c1, "_bg"]
     in CSS.renderBlocks 
-           [ (c1, [("color", toCssColour col)])
-           , (c2, [("background-color", toCssColour col)])
+           [ (c1, [("color", toCssColour col)
+                  ,("stroke", toCssColour col)])
            ]                     
     
 
-uiComponents m =
-    CSS.renderBlock 
-           ("body", [("color", lookupColour "UINFD")
-                    ,("background-color", lookupColour "UIBCK")
-                    ,("border-color", lookupColour "UIBDR")
-                    ]) 
-           where lookupColour c = 
-                     let c' = fst . fromJust $ Map.lookup c m
-                     in toCssColour c'
+uiComponents m = mconcat [
+                  CSS.renderBlock 
+                  ("body", [("color", lookupColour "UINFD")
+                           ,("background-color", lookupColour "UIBCK")
+                           ,("border-color", lookupColour "UIBDR")
+                           ]),
+                  CSS.renderBlock
+                  ("svg",  [("stroke", lookupColour "UINFD")
+                           ,("fill", lookupColour "UIBCK")
+                           ,("fill-opacity", "0.0")
+                           ,("stroke-opacity", "1.0")
+                           ])
+
+                 ]
+    where lookupColour c = 
+              let c' = fst . fromJust $ Map.lookup c m
+              in toCssColour c'
 
