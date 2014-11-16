@@ -16,10 +16,10 @@ import Data.Int
 import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
 import Data.IHO.S52.Types.Helper
+import Data.IHO.S52.Types.Symbology
 
 
 data LookupTable
-
 
 data FTYP = Area | Point | Line deriving (Eq, Show)
 
@@ -73,7 +73,8 @@ instance Module LookupTable where
                          , lupt_rpri :: ! RPRI
                          , lupt_tnam :: ! TNAM
                          , lupt_attc :: ! [(Text, Text)]
-                         , lupt_inst :: ! [Text]
+                         , lupt_inst :: ! [SymbologyCommand]
+--                         , lupt_inst :: ! [Text]
                          , lupt_disc :: ! Text
                          , lupt_lucm :: ! Text
                          } deriving (Show, Eq)
@@ -97,7 +98,8 @@ instance Module LookupTable where
                               attl <- take 6
                               attv <- varString
                               return (attl, attv)
-      inst <- parseLine "INST" $ parseInstr []
+      inst <- parseLine "INST" $ parseSymbology
+--      inst <- parseLine "INST" $ parseInstr
       disc <- parseLine "DISC" $ varString
       lucm <- parseLine "LUCM" $ varString
       _ <- parseLine "****" endOfInput  

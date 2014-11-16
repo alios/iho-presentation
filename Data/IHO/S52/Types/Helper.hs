@@ -12,7 +12,7 @@ import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Prizm.Types
 
-
+{-
 parseI :: Parser Text
 parseI = parseI' []
 
@@ -22,16 +22,17 @@ parseI' is = do
   if (eof) then return $ T.pack is
   else do
     i <- anyChar
-    if (i == ';') then return $ T.pack is
+    if (i == ';' || i == '\US') then return $ T.pack is
     else parseI' (is ++ [i])
-    
+   
+
 parseInstr :: [Text] -> Parser [Text]
 parseInstr is = do
   i <- parseI
   eof <- atEnd
   if(eof) then return (is ++ [i])
   else parseInstr (is ++ [i])
-
+-}
 
 constPrism :: (a, a, a) -> CIEXYZ a
 constPrism (x,y,z) = CIEXYZ x y z
@@ -70,7 +71,7 @@ parseDay = do
   d <- fmap (read . T.unpack) $ take 2
   case (fromGregorianValid y m d) of
     Nothing -> fail $ "invalid date: " ++ concat [show y,"-",show m,"-", show d]
-    Just d -> return d
+    Just d' -> return d'
 
 parseTime :: Parser DiffTime
 parseTime = do
