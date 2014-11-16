@@ -80,6 +80,7 @@ library
   build-depends:       base >=4.6 ,
                        template-haskell,
                        time,
+                       lens,
                        containers,
                        attoparsec >= 0.11,
                        text,

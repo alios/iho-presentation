@@ -1,29 +1,53 @@
 {-# Language DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Data.IHO.S52.Types.Symbology where
-
+import Control.Lens
 import Prelude hiding (take)
 import Data.Text (Text)
 import Data.Data (Data)
 import Data.Typeable (Typeable)
 import qualified Data.Text as T
 import Data.Attoparsec.Text
-
+import Data.Char (isDigit)
 data HJUST = HCENTRE | RIGHT | LEFT deriving (Data, Typeable, Show, Eq)
-  
+makeClassy ''HJUST
+
 data VJUST = BOTTOM | VCENTRE | TOP deriving (Data, Typeable, Show, Eq)
-                              
+makeClassy ''VJUST
+                                             
 data SPACE = Fit | StandardSpace | StandardSpaceWrap deriving (Data, Typeable, Show, Eq)
+makeClassy ''SPACE
 
 data PSTYLE = SOLD | DASH | DOTT deriving (Data, Typeable, Show, Eq)
+makeClassy ''PSTYLE
+
+data FontFamily = PlainSerif  deriving (Data, Typeable, Show, Eq)
+makeClassy ''FontFamily
+
+data FontWeight = Light | Medium | Bold   deriving (Data, Typeable, Show, Eq)
+makeClassy ''FontWeight 
+
+data FontStyle = NonItallic deriving (Data, Typeable, Show, Eq)
+makeClassy ''FontStyle
+
+data CHARS = CHARS { _charsFontFamily :: FontFamily
+                   , _charsFontWeight :: FontWeight
+                   , _charsFontStyle :: FontStyle
+                   , _charsBodySize :: Int
+                   } deriving (Data, Typeable, Show, Eq)
+makeClassy ''CHARS
+instance HasFontFamily CHARS where fontFamily = charsFontFamily
+instance HasFontWeight CHARS where fontWeight = charsFontWeight
+instance HasFontStyle CHARS  where fontStyle  = charsFontStyle
 
 data SymbologyCommand 
   = TX { _tx_string :: Text
        , _tx_hjust :: HJUST
        , _tx_vjust :: VJUST
        , _tx_space :: SPACE
-       , _tx_chars :: Text
+       , _tx_chars :: CHARS
        , _tx_xoffs :: Int
        , _tx_yoffs :: Int
        , _tx_colour :: Text
@@ -34,7 +58,7 @@ data SymbologyCommand
        , _te_hjust :: HJUST
        , _te_vjust :: VJUST
        , _te_space :: SPACE
-       , _te_chars :: Text
+       , _te_chars :: CHARS
        , _te_xoffs :: Int
        , _te_yoffs :: Int
        , _te_colour :: Text
@@ -54,6 +78,8 @@ data SymbologyCommand
        }
   | CS { _cs_procname :: Text }
   deriving (Data, Typeable, Show, Eq)
+makeLenses ''SymbologyCommand
+
 
 parseSymbologyCommand :: Parser SymbologyCommand
 parseSymbologyCommand = choice [ parseShowText, parseSymbol
@@ -99,27 +125,6 @@ parseInstr' is = do
   if(eof) then return _is
   else parseInstr' _is
     
-  
-
-
-{-
-_tx = "TX('DR',2,3,2,'15110',-1,1,CHBLK,50);TE('Nr %s','OBJNAM',3,1,2,'15110',1,0,CHBLK,29)\US"
-_te = "TE('Nr %s','OBJNAM',3,1,2,'15110',1,0,CHBLK,29)"
-_te2 = "TE('%03.0lf deg','ORIENT',1,1,2,'15110',0,-1,CHBLK,11)"
-_sy = "SY(BOYCAR01)"
-_sy2 = "SY(LIGHTDEF,135)"
-_ls = "LS(DASH,2,CHMGD)"
-_lc = "LC(ACHARE51)"
-_ac = "AC(CHBRN)"
-_ap = "AP(SQUALA21)"
-_ac2 = "AC(TRFCF,3)"
-_cs = "CS(ACHARE51)"
-
-_ts = [ _te, _te2, _sy, _sy2, _ls, _lc,  _ap, _ac, _ac2, _cs]
-t = map (parseOnly parseSymbologyCommand) _ts
-
---tt = parseOnly parseInstructions _tx
--}
 
 parseCS :: Parser SymbologyCommand
 parseCS = do
@@ -198,13 +203,13 @@ parseTX = do
   _ <- string "TX("
   _string <- fmap T.pack $ many' $ notChar ','
   _ <- string ","
-  _hjust <- (fmap (toEnum . read) $ many1 $ notChar ',') <?> "HJUST"
+  _hjust <- parseEnum <?> "HJUST"
   _ <- char ','
-  _vjust <- (fmap (toEnum . read) $ many1 $ notChar ',') <?> "VJUST"
+  _vjust <- parseEnum <?> "VJUST"
   _ <- char ','
-  _space <- (fmap (toEnum . read) $ many1 $ notChar ',') <?> "SPACE"
+  _space <- parseEnum <?> "SPACE"
   _ <- string ",'"
-  _chars <- take 5
+  _chars <- parseCHARS
   _ <- string "',"
   _xoffs <- fmap read $ many1 $ notChar ','
   _ <- string ","
@@ -232,14 +237,13 @@ parseTE = do
   _ <- string "','"
   _attribs <- fmap (T.splitOn "," . T.pack) $ many' $ notChar '\''
   _ <- string "',"
-  
-  _hjust <- (fmap (toEnum . read) $ many1 $ notChar ',') <?> "HJUST"
+  _hjust <- parseEnum <?> "HJUST"
   _ <- char ','
-  _vjust <- (fmap (toEnum . read) $ many1 $ notChar ',') <?> "VJUST"
+  _vjust <- parseEnum <?> "VJUST"
   _ <- char ','
-  _space <- (fmap (toEnum . read) $ many1 $ notChar ',') <?> "SPACE"
+  _space <- parseEnum <?> "SPACE"
   _ <- string ",'"
-  _chars <- take 5
+  _chars <- parseCHARS 
   _ <- string "',"
   _xoffs <- fmap read $ many1 $ notChar ','
   _ <- string ","
@@ -261,6 +265,10 @@ parseTE = do
               , _te_display = _display
               }
 
+
+parseEnum :: (Enum a) => Parser a
+parseEnum = fmap (toEnum . read) $ many1 $ notChar ','
+
 parsePSTYLE :: Parser PSTYLE
 parsePSTYLE =
   choice [ string "SOLD" >> return SOLD
@@ -268,21 +276,37 @@ parsePSTYLE =
          , string "DOTT" >> return DOTT
          ]
 
+parseCHARS :: Parser CHARS
+parseCHARS = do
+  a <- fmap (toEnum . read . return) $ satisfy isDigit
+  b <- fmap (toEnum . read . return) $ satisfy isDigit
+  c <- fmap (toEnum . read . return) $ satisfy isDigit
+  d <- fmap read $ count 2 $ satisfy isDigit
+  return CHARS { _charsFontFamily = a
+               , _charsFontWeight = b
+               , _charsFontStyle = c
+               , _charsBodySize = d
+               }
 
 
+instance Enum FontFamily where
+  toEnum 1 = PlainSerif
+  toEnum a = error $ "FontFamily toEnum undefined for value: " ++ show a
+  fromEnum PlainSerif = 1
 
--- ShowArea
--- AC
--- AP
+instance Enum FontWeight where
+  toEnum 4 = Light
+  toEnum 5 = Medium
+  toEnum 6 = Bold
+  toEnum a = error $ "FontWeight toEnum undefined for value: " ++ show a
+  fromEnum Light = 4
+  fromEnum Medium = 5
+  fromEnum Bold = 6
 
-
--- Show Point
--- SY 
-
--- Callsymproc 
--- C
-
-
+instance Enum FontStyle where
+  toEnum 1 = NonItallic
+  toEnum a = error $ "FontStyle toEnum undefined for value: " ++ show a
+  fromEnum NonItallic = 1
 
 instance Enum HJUST where
   toEnum 1 = HCENTRE
