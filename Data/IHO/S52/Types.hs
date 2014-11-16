@@ -10,9 +10,7 @@ module Data.IHO.S52.Types
     , module Data.IHO.S52.Types.Symbol    
     , module Data.IHO.S52.Types.LineStyle    
     , Library (..)
-    , libraryParser
     , parseLibrary
-    , parseLibraryIO
     ) where
 
 import Data.Text (Text)

@@ -1,5 +1,7 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# Language DeriveDataTypeable #-}
 
 module Data.IHO.S52.Types.LookupTable
     ( LookupTable (..)
@@ -17,11 +19,14 @@ import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
 import Data.IHO.S52.Types.Helper
 import Data.IHO.S52.Types.Symbology
+import Data.Data (Data)
+import Data.Typeable (Typeable)
+import Control.Lens
 
+data LookupTable 
 
-data LookupTable
-
-data FTYP = Area | Point | Line deriving (Eq, Show)
+data FTYP = Area | Point | Line deriving (Data, Typeable, Show, Eq)
+makeClassy ''FTYP
 
 parseFTYP :: Parser FTYP
 parseFTYP = do
@@ -35,9 +40,11 @@ parseFTYP = do
 data TNAM = PLAIN_BOUNDARIES | SYMBOLIZED_BOUNDARIES
           | LINES
           | SIMPLIFIED | PAPER_CHART
-            deriving (Show, Eq)
+          deriving (Data, Typeable, Show, Eq)
+makeClassy ''TNAM
 
-data RPRI = OnTopOfRadar | SupressedByRadar deriving (Eq, Show)
+data RPRI = OnTopOfRadar | SupressedByRadar deriving (Data, Typeable, Show, Eq)
+makeClassy ''RPRI
 
 tnamP t = try $ do _ <- string $ T.pack . show $ t ; return t
           
@@ -74,7 +81,6 @@ instance Module LookupTable where
                          , lupt_tnam :: ! TNAM
                          , lupt_attc :: ! [(Text, Text)]
                          , lupt_inst :: ! [SymbologyCommand]
---                         , lupt_inst :: ! [Text]
                          , lupt_disc :: ! Text
                          , lupt_lucm :: ! Text
                          } deriving (Show, Eq)
@@ -99,7 +105,6 @@ instance Module LookupTable where
                               attv <- varString
                               return (attl, attv)
       inst <- parseLine "INST" $ parseSymbology
---      inst <- parseLine "INST" $ parseInstr
       disc <- parseLine "DISC" $ varString
       lucm <- parseLine "LUCM" $ varString
       _ <- parseLine "****" endOfInput  
@@ -118,4 +123,4 @@ instance Module LookupTable where
                  , lupt_lucm = lucm
                  }
 
-  
+

@@ -1,9 +1,9 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.IHO.S52.Preslib40 (preslib40) where
+module Data.IHO.S52.Preslib40 (preslib40, module Data.IHO.S52.PresentationLib) where
 
-import Data.IHO.S52.Types
+import Data.IHO.S52.PresentationLib
 import Data.IHO.S52.QuasiQuote
 
 preslib40 :: Library
