@@ -22,6 +22,8 @@ import Data.IHO.S52.Types.Symbology
 import Data.Data (Data)
 import Data.Typeable (Typeable)
 import Control.Lens
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 data LookupTable 
 
@@ -71,18 +73,18 @@ parseRPRI = do
 
 instance Module LookupTable where
     data Record LookupTable = 
-        LookupTableEntry { lupt_modn :: ! Text
-                         , lupt_rcid :: ! Int16
-                         , lupt_stat :: ! Text
-                         , lupt_obcl :: ! Text
-                         , lupt_ftyp :: ! FTYP
-                         , lupt_dpri :: ! Int16
-                         , lupt_rpri :: ! RPRI
-                         , lupt_tnam :: ! TNAM
-                         , lupt_attc :: ! [(Text, Text)]
-                         , lupt_inst :: ! [SymbologyCommand]
-                         , lupt_disc :: ! Text
-                         , lupt_lucm :: ! Text
+        LookupTableEntry { lupt_modn :: ! Text -- ^ Module Identifier (Module Name)
+                         , lupt_rcid :: ! Int16 -- ^ Record Identifier 
+                         , lupt_stat :: ! Text -- ^ status of module contents
+                         , lupt_obcl :: ! Text -- ^ Name of the addressed object class
+                         , lupt_ftyp :: ! FTYP -- ^ Addressed Object Type
+                         , lupt_dpri :: ! Int16 -- ^ Display Priority
+                         , lupt_rpri :: ! RPRI -- ^ Radar Priority
+                         , lupt_tnam :: ! TNAM -- ^ Name of the addressed Look Up Table Set
+                         , lupt_attc :: ! (Map Text Text) -- ^ Attributes
+                         , lupt_inst :: ! [SymbologyCommand] -- ^ Symbology Information
+                         , lupt_disc :: ! Text -- ^ Display Category
+                         , lupt_lucm :: ! Text -- ^ Look-Up Comment
                          } deriving (Show, Eq)
     module_modn = lupt_modn
     module_rcid = lupt_rcid
@@ -117,7 +119,7 @@ instance Module LookupTable where
                  , lupt_dpri = dpri
                  , lupt_rpri = rpri
                  , lupt_tnam = tnam
-                 , lupt_attc = attc
+                 , lupt_attc = Map.fromList attc
                  , lupt_inst = inst
                  , lupt_disc = disc
                  , lupt_lucm = lucm
