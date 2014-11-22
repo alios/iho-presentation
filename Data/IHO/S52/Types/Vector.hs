@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# Language DeriveDataTypeable #-}
 
 module Data.IHO.S52.Types.Vector
     ( Vector2
@@ -16,22 +18,25 @@ import Data.Map (Map)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.IHO.S52.Types.Module
+import Data.Data (Data)
+import Data.Typeable (Typeable)
+import Control.Lens
 
 type Vector2 = (Int16, Int16)
 
-class (Module m) => VectorRecord m where
-    vector_name :: Record m -> Text
-    vector_pos :: Record m -> Vector2
-    vector_box_size :: Record m -> Vector2
-    vector_box_pos :: Record m -> Vector2
-    vector_color_refs :: Record m -> Map Char Text
-    vector_xpo :: Record m -> Text
-    vector_vct :: Record m -> [[VectorInstruction]]
+data PolygonMode
+    = EnterPolygonMode
+    | SubPolygon 
+    | PolygonDone
+      deriving (Show, Eq, Data, Typeable)
+makeClassy ''PolygonMode
 
-
-
-
-
+data Orientation
+    = Upright 
+    | LastPenMove
+    | Tangent
+      deriving (Show, Eq, Data, Typeable)
+makeClassy ''Orientation
 
 data VectorInstruction
     = SetPenColour Char
@@ -44,19 +49,18 @@ data VectorInstruction
     | OutlinePolygon
     | FillPolygon
     | SymbolCall Text Orientation
-      deriving (Show, Eq)
+    deriving (Show, Eq, Data, Typeable)
+makeClassy ''VectorInstruction
 
-data PolygonMode
-    = EnterPolygonMode
-    | SubPolygon 
-    | PolygonDone
-      deriving (Show, Eq)
-                   
-data Orientation
-    = Upright 
-    | LastPenMove
-    | Tangent
-      deriving (Show, Eq)
+class (Module m) => VectorRecord m where
+    vector_name :: Record m -> Text
+    vector_pos :: Record m -> Vector2
+    vector_box_size :: Record m -> Vector2
+    vector_box_pos :: Record m -> Vector2
+    vector_color_refs :: Record m -> Map Char Text
+    vector_xpo :: Record m -> Text
+    vector_vct :: Record m -> [[VectorInstruction]]
+
 
 parseInstructions :: Parser [VectorInstruction]               
 parseInstructions = many' $ try parseInstruction

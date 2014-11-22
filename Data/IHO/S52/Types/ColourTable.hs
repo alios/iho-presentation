@@ -31,6 +31,13 @@ data ColourTable
 type ColourMapEntry = (CIEXYZ Double, Text)
 type ColourMap = Map Text ColourMapEntry
 
+{-
+<defs>
+  <solidColor xml:id="" solid-color="" solid-opacity="1" />
+</defs>
+-}
+
+
 instance Module ColourTable where
     data Record ColourTable =
        ColourTable { cols_modn :: ! Text

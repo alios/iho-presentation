@@ -13,26 +13,27 @@ import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
 import Data.IHO.S52.Types.Vector
 import Data.IHO.S52.Types.Helper
+import Data.Map (Map)
 import qualified Data.Map as Map
 
 data Symbol
 
 instance Module Symbol where
     data Record Symbol =
-        SymbolEntry { symb_modn :: ! Text 
-                    , symb_rcid :: ! Int16
-                    , symb_stat :: ! Text
-                    , symb_synm :: ! Text
-                    , symb_sydf :: ! DrawingType
-                    , symb_sycl :: ! Int16                             
-                    , symb_syrw :: ! Int16
-                    , symb_syhl :: ! Int16
-                    , symb_syvl :: ! Int16
-                    , symb_sbxc :: ! Int16
-                    , symb_sbxr :: ! Int16
-                    , symb_sxpo :: ! Text
-                    , symb_scrf :: ! [(Char, Text)]
-                    , symb_sbtm :: ! [Text]
+        SymbolEntry { symb_modn :: ! Text -- ^ Module Identifier (Module Name)
+                    , symb_rcid :: ! Int16 -- ^ Record Identifier
+                    , symb_stat :: ! Text -- ^ status of module contents
+                    , symb_synm :: ! Text -- ^ Name of the symbol
+                    , symb_sydf :: ! DrawingType -- ^ type of the symbold definition
+                    , symb_sycl :: ! Int16 -- ^ pivot-point's column-number
+                    , symb_syrw :: ! Int16 -- ^ pivot-point's row-number
+                    , symb_syhl :: ! Int16 -- ^ width of boundingbox
+                    , symb_syvl :: ! Int16 -- ^ height of boundingbox
+                    , symb_sbxc :: ! Int16 -- ^ bounding box upper left column number
+                    , symb_sbxr :: ! Int16 -- ^ bounding box upper left row number
+                    , symb_sxpo :: ! Text -- ^ free text for symbology explanation
+                    , symb_scrf :: ! (Map Char Text) -- ^ 'ColourTable' reference map
+                    , symb_sbtm :: ! [Text] -- ^ raster image rows
                     , symb_svct :: ! [[VectorInstruction]]
                     } deriving (Eq, Show)
     module_modn = symb_modn
@@ -83,7 +84,7 @@ instance Module Symbol where
                  , symb_sbxc = sbxc
                  , symb_sbxr = sbxr
                  , symb_sxpo = sxpo
-                 , symb_scrf = scrf
+                 , symb_scrf = Map.fromList  scrf
                  , symb_sbtm = sbtm
                  , symb_svct = svct
                  }
@@ -92,7 +93,7 @@ instance VectorRecord Symbol where
     vector_pos s = (symb_sycl s, symb_syrw s)
     vector_box_size s =  (symb_syhl s, symb_syvl s)
     vector_box_pos s = (symb_sbxc s, symb_sbxr s)
-    vector_color_refs = Map.fromList . symb_scrf
+    vector_color_refs = symb_scrf
     vector_xpo = symb_sxpo
     vector_vct = symb_svct
     vector_name = symb_synm

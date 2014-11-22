@@ -1,5 +1,11 @@
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# Language DeriveDataTypeable #-}
+{-# Language TemplateHaskell #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Data.IHO.S52.SVG where
 
@@ -7,22 +13,78 @@ import Data.IHO.S52.Types.Vector
 import Data.IHO.S52.Types.Module
 
 import Text.Blaze.Svg
-import Text.Blaze.Svg11
-import Text.Blaze.Internal
+import qualified Text.Blaze.Svg11 as SVG
+import Text.Blaze.Svg11 ((!))
 import Text.Blaze.Svg11.Attributes as A
 import Data.Int
-import Data.List
-import Data.String
-import qualified Data.Map as Map
-import Control.Monad.State
-import Data.Attoparsec.Text
-import Text.Blaze.Renderer.Utf8 (renderMarkup)
-import Text.Printf
 import Data.Text (Text)
-import qualified Data.Text as T
-import Data.IHO.S52.Types.Symbol
-import Data.ByteString.Lazy (ByteString)
-import Text.Blaze.Internal (text)
+import Data.Data (Data)
+import Data.Typeable (Typeable)
+import Control.Monad.RWS
+import Control.Lens
+import qualified Data.Map as Map
+
+
+
+
+
+data RenderState r =
+  RenderState { _parentRecord :: r
+              , _pen_colour :: Text
+              , _pen_width  :: Int16
+              , _fill_trans :: Int8
+              , _verticeBuffer :: [[VectorInstruction]]
+              }
+makeClassy ''RenderState
+
+type SVGRenderer r t = (VectorRecord r) => RWS VectorInstruction (RenderState r) Svg t
+
+
+addPenPosM i = do
+  vb <- fmap (view verticeBuffer) get
+  modify (set verticeBuffer  $ addPenPos i  vb)
+  
+addPenPos i@(PenUp v) = addPenPos' i
+addPenPos i@(PenDraw v) = addPenPos' i
+addPenPos i = error "addPenPos: only PenUp or PenDraw are allowed"
+
+addPenPos' v [] = [[v]]
+addPenPos' v ([] : _) = [[v]]
+addPenPos' v (is : bs) = (v : is) : bs
+
+lastPenPos st =
+  case (view verticeBuffer st) of
+   [] -> (0,0)
+   ([]:_) -> (0,0)
+   ((i:_):_) -> case (i) of
+                 PenUp v -> v
+                 PenDraw v -> v
+                 ui -> error "not a path instruction in vecticeBuffer"
+ 
+
+
+evalVI (SetPenColour c) = do
+  cm <- fmap (vector_color_refs . view parentRecord ) get
+  let colour = maybe (error $ "undefined colour " ++ [c]) id $ Map.lookup c cm
+  modify (set pen_colour colour)
+evalVI (SetPenWidth w) = modify (set pen_width w)
+evalVI (SetPenTransparency t) = modify (set fill_trans t)
+evalVI i@(PenUp _) = addPenPosM i
+evalVI i@(PenDraw _) = do
+  addPenPosM i
+evalVI i@(Circle r) = do
+  (x,y) <- fmap lastPenPos get
+  let aR = A.r . SVG.toValue . show $ r
+      aX = A.x . SVG.toValue . show $ x
+      aY = A.y . SVG.toValue . show $ y
+  tell (SVG.circle ! aR ! aX ! aY)
+evalVI (PolygonMode m) = return ()
+evalVI (OutlinePolygon) = return ()
+evalVI (FillPolygon) = return ()
+evalVI (SymbolCall sy o) = return ()
+  
+--  fmap (view pen_colour)
+{-
 
 class VectorInterpreter i where
     data InterpreterState i :: *
@@ -185,3 +247,4 @@ trec = SymbolEntry {symb_modn = "SY", symb_rcid = 1426, symb_stat = "NIL", symb_
 
 
 
+-}
