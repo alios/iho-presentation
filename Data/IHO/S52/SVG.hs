@@ -23,9 +23,24 @@ import Data.Typeable (Typeable)
 import Control.Monad.RWS
 import Control.Lens
 import qualified Data.Map as Map
+import Data.IHO.S52.CSS
+import Text.Blaze.Internal
+
+svgns = customAttribute "xmlns" $
+        SVG.toValue ("http://www.w3.org/2000/svg" :: String)
+xlinkns = customAttribute "xmlns:xlink" $
+          SVG.toValue ("http://www.w3.org/1999/xlink" :: String)
 
 
-
+renderSvg cschema lib =
+  let x = 1
+  in do
+    SVG.docType
+    SVG.svg ! svgns ! xlinkns $ do
+      renderDefs cschema lib
+  
+renderDefs cschema lib = SVG.defs $ do
+  svgColourLib lib cschema
 
 
 data RenderState r =

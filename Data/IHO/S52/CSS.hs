@@ -41,10 +41,22 @@ style_ _title child =
 cdata :: Builder -> Markup
 cdata txt = preEscapedToMarkup $ mconcat ["<![CDATA[", toLazyText txt, "]]>"]
 
+
 buildColourMap :: ColourMap -> Builder
 buildColourMap =
-  mconcat . map (\e -> buildColourMapEntry "stroke" e `mappend` 
-                       buildColourMapEntry "fill" e) . Map.toList
+  mconcat . map buildColourMapEntry . Map.toList
+
+
+buildColourMapEntry' :: (Data.Text.Text, ColourMapEntry) -> Data.Text.Text -> Builder
+buildColourMapEntry' (ctok, (col, nm)) att = 
+    let c1 = Data.Text.concat [".", att, "_", ctok]
+    in CSS.renderBlock (c1, [(att, toCssColour col)]) 
+
+buildColourMapEntry :: (Data.Text.Text, ColourMapEntry) -> Builder
+buildColourMapEntry e = mconcat $ map (buildColourMapEntry' e) ["stroke", "fill"]
+
+--x :: Data.Text.Text -> ColourMap -> Builder
+--x a cm = map (buildColourMapEntry a) . Map.toList
 
 toCssColour :: CIEXYZ Double -> Data.Text.Text
 toCssColour col =
@@ -57,10 +69,6 @@ toCssColour col =
     in Data.Text.concat $ "#" : cs
 
        
-buildColourMapEntry :: Data.Text.Text -> (Data.Text.Text, ColourMapEntry) -> Builder
-buildColourMapEntry att (ctok, (col, nm)) = 
-    let c1 = Data.Text.concat [".", att, "_", ctok]
-    in CSS.renderBlock (c1, [(att, toCssColour col)]) 
     
 {-
 uiComponents m = mconcat [
