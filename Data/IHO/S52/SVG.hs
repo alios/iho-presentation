@@ -9,8 +9,8 @@
 
 module Data.IHO.S52.SVG where
 
-import Data.IHO.S52.Types.Vector
-import Data.IHO.S52.Types.Module
+import Data.IHO.S52.Types
+--import Data.IHO.S52.Types
 
 import Text.Blaze.Svg
 import qualified Text.Blaze.Svg11 as SVG
@@ -26,11 +26,6 @@ import qualified Data.Map as Map
 import Data.IHO.S52.CSS
 import Text.Blaze.Internal
 
-svgns = customAttribute "xmlns" $
-        SVG.toValue ("http://www.w3.org/2000/svg" :: String)
-xlinkns = customAttribute "xmlns:xlink" $
-          SVG.toValue ("http://www.w3.org/1999/xlink" :: String)
-
 
 renderSvg cschema lib =
   let x = 1
@@ -38,9 +33,45 @@ renderSvg cschema lib =
     SVG.docType
     SVG.svg ! svgns ! xlinkns $ do
       renderDefs cschema lib
-  
+
+svgns = customAttribute "xmlns" $
+        SVG.toValue ("http://www.w3.org/2000/svg" :: String)
+xlinkns = customAttribute "xmlns:xlink" $
+          SVG.toValue ("http://www.w3.org/1999/xlink" :: String)
+
 renderDefs cschema lib = SVG.defs $ do
   svgColourLib lib cschema
+  renderSymbolDefs lib
+  renderLineStyleDefs lib
+
+renderSymbolDefs lib = mconcat $ map renderSymbolDef $ lib_symb lib
+renderLineStyleDefs lib = mconcat $ map renderLineStyleDef $ lib_lnst lib
+
+renderSymbolDef = renderVectorRecordDef SVG.symbol
+renderLineStyleDef = renderVectorRecordDef SVG.pattern
+
+renderVectorRecordDef :: (SVG.Svg -> SVG.Svg) -> VectorRecord r => Record r -> SVG.Svg
+renderVectorRecordDef ct rec =
+  let (_px, _py) = vector_pos rec
+      pxV = SVG.toValue $ toInteger _px 
+      pyV = SVG.toValue $ toInteger _py
+      (_bx, _by) = vector_box_pos rec
+      (_bw, _bh) = vector_box_size rec
+      boxx = A.x $ SVG.toValue $ toInteger _bx
+      boxy = A.y $ SVG.toValue $ toInteger _by
+      boxw = A.width $ SVG.toValue $ toInteger _bw
+      boxh = A.height $ SVG.toValue $ toInteger _bh
+      vname = vector_name rec
+      idA = A.id_ $ textValue vname
+  in ct ! idA $ do
+       customParent "title" $ do SVG.toMarkup vname
+       customParent "desc" $ do SVG.toMarkup $ vector_xpo rec
+       SVG.g $ do 
+         SVG.rect ! boxx ! boxy ! boxw ! boxh
+         SVG.circle ! A.x pxV ! A.y pyV ! (A.r $ stringValue "10")
+       
+
+
 
 
 data RenderState r =
@@ -53,7 +84,6 @@ data RenderState r =
 makeClassy ''RenderState
 
 type SVGRenderer r t = (VectorRecord r) => RWS VectorInstruction (RenderState r) Svg t
-
 
 addPenPosM i = do
   vb <- fmap (view verticeBuffer) get
