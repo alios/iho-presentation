@@ -27,12 +27,15 @@ import Data.IHO.S52.CSS
 import Text.Blaze.Internal
 
 
-renderSvg cschema lib =
+renderSvg = renderSvg' $ SVG.svg
+
+renderSvg' outersvg cschema lib inner =
   let x = 1
   in do
     SVG.docType
-    SVG.svg ! svgns ! xlinkns $ do
+    outersvg ! svgns ! xlinkns $ do
       renderDefs cschema lib
+      inner
 
 svgns = customAttribute "xmlns" $
         SVG.toValue ("http://www.w3.org/2000/svg" :: String)
@@ -46,32 +49,48 @@ renderDefs cschema lib = SVG.defs $ do
 
 renderSymbolDefs lib = mconcat $ map renderSymbolDef $ lib_symb lib
 renderLineStyleDefs lib = mconcat $ map renderLineStyleDef $ lib_lnst lib
-
+renderPatternDefs lib = mconcat $ map renderPatternDef $ lib_patt lib
 renderSymbolDef = renderVectorRecordDef SVG.symbol
 renderLineStyleDef = renderVectorRecordDef SVG.pattern
+renderPatternDef = renderVectorRecordDef SVG.pattern
 
 renderVectorRecordDef :: (SVG.Svg -> SVG.Svg) -> VectorRecord r => Record r -> SVG.Svg
 renderVectorRecordDef ct rec =
   let (_px, _py) = vector_pos rec
-      pxV = SVG.toValue $ toInteger _px 
-      pyV = SVG.toValue $ toInteger _py
+      px = A.cx $ SVG.toValue $ toInteger _px 
+      py = A.cy $ SVG.toValue $ toInteger _py
       (_bx, _by) = vector_box_pos rec
       (_bw, _bh) = vector_box_size rec
       boxx = A.x $ SVG.toValue $ toInteger _bx
       boxy = A.y $ SVG.toValue $ toInteger _by
       boxw = A.width $ SVG.toValue $ toInteger _bw
       boxh = A.height $ SVG.toValue $ toInteger _bh
+      boxf = A.fill $ textValue "none"
+      boxs = A.stroke $ textValue "blue"
       vname = vector_name rec
       idA = A.id_ $ textValue vname
-  in ct ! idA $ do
+      strokeBlack = A.stroke $ textValue "black"
+      fillRed  = A.fill $ textValue "red"
+      fillGreen  = A.fill $ textValue "blue"
+      translateS = "translate("++ show (-1 * _px) ++ "," ++ show (-1 * _py) ++ ")"
+      translateA = A.transform $ stringValue translateS
+  in ct ! idA ! translateA $ do
        customParent "title" $ do SVG.toMarkup vname
        customParent "desc" $ do SVG.toMarkup $ vector_xpo rec
        SVG.g $ do 
-         SVG.rect ! boxx ! boxy ! boxw ! boxh
-         SVG.circle ! A.x pxV ! A.y pyV ! (A.r $ stringValue "10")
+         SVG.rect ! boxx ! boxy ! boxw ! boxh ! boxf ! boxs
+         SVG.circle ! px ! py ! (A.r $ stringValue "10") ! strokeBlack ! fillRed
+
+
+         
        
-
-
+useSymbol :: Integral t => t -> t -> Text -> Svg
+useSymbol x y i = 
+  let ref = mconcat [ "#", i ]
+      refA = A.xlinkHref . SVG.toValue $ ref
+      xA = A.x . SVG.toValue . toInteger $ x
+      yA = A.y . SVG.toValue . toInteger $ y      
+  in SVG.use ! refA ! xA ! yA
 
 
 data RenderState r =
