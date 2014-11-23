@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Data.IHO.S52.SVG where
 
@@ -18,6 +19,7 @@ import Text.Blaze.Svg11 ((!))
 import Text.Blaze.Svg11.Attributes as A
 import Data.Int
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Data (Data)
 import Data.Typeable (Typeable)
 import Control.Monad.RWS
@@ -25,6 +27,134 @@ import Control.Lens
 import qualified Data.Map as Map
 import Data.IHO.S52.CSS
 import Text.Blaze.Internal
+
+
+type RenderAction t = (VectorRecord r) => RWS VectorInstruction Svg (RenderState r) ()
+
+data RenderState r =
+  RenderState { _parentRecord :: (VectorRecord r) => Record r
+              , _pen_colour :: Text
+              , _pen_width  :: Int16
+              , _fill_trans :: Int8
+              , _pen_position :: Vector2
+              , _verticeBuffer :: [VectorInstruction]
+              , _polygonMode :: Maybe PolygonMode
+              , _polygonBuffer :: [(Vector2, [VectorInstruction])]
+              }
+makeLenses ''RenderState
+
+mkRenderState :: (VectorRecord r) => Record r -> RenderState r
+mkRenderState _r =
+  RenderState { _parentRecord = _r
+              , _pen_colour = ""
+              , _pen_width  = 1
+              , _fill_trans = 0                             
+              , _verticeBuffer = mempty
+              , _pen_position = (0,0)
+              , _polygonMode = Nothing
+              , _polygonBuffer = mempty
+              }
+
+readVIs :: VectorRecord r => Record r -> Svg
+readVIs _r =
+  let s0 = mkRenderState _r
+      is = mconcat $ vector_vct _r
+  in SVG.g $ readVIs' s0 is
+
+
+readVIs' :: VectorRecord r => RenderState r -> [VectorInstruction] -> Svg
+readVIs' st [] =
+  let (_, w) = execRWS renderVerticeBuffer undefined st
+  in w
+readVIs' s0 (i:is) =
+  let (s1, w) = execRWS readVI i s0
+      res =  readVIs' s1 is
+  in w `mappend` res
+
+
+renderBuffer :: RenderAction ()
+renderBuffer = do
+  st <- get
+  case (st ^. polygonMode) of
+   Nothing -> renderVerticeBuffer
+   Just EnterPolygonMode -> renderPolygonBuffer 0
+   Just SubPolygon -> renderPolygonBuffer 1
+   Just pm -> fail $ "undefined polygon mode: " ++ show pm
+   
+
+renderPolygonBuffer :: Int -> RenderAction ()
+renderPolygonBuffer i = do
+  st <- get
+--  let x = polygonBuffer.element i
+--  let (p0, is) = maybe (error "") id $ st ^.. polygonBuffer $  at i
+      
+  return ()
+  
+
+renderVerticeBuffer :: RenderAction ()
+renderVerticeBuffer = do
+  st <- get
+  let vb = st ^. verticeBuffer
+      pcmds = map renderPathCmd vb
+      aStrokeWidth = A.strokeWidth . SVG.toValue . toInteger $ st ^. pen_width
+      aFillNone = A.fill $ preEscapedStringValue "none"
+      aClass = A.class_ . preEscapedStringValue $
+               "stroke_" ++ T.unpack (st ^. pen_colour)
+      aPath = A.d . mkPath $ sequence pcmds >> return ()        
+  tell $ SVG.path ! aStrokeWidth ! aFillNone ! aClass ! aPath
+  put st { _verticeBuffer = mempty }
+  addPenPosM (PenUp $ st ^. pen_position)
+  return ()
+
+
+readVI :: RenderAction ()
+readVI = ask >>= evalVI
+
+renderPathCmd (PenUp (x, y)) = m x y
+renderPathCmd (PenDraw (x, y)) = l x y
+renderPathCmd c = fail $ "undefined Path Command: " ++ show c
+
+evalVI :: VectorInstruction -> RenderAction ()
+evalVI (SetPenColour _c) = do
+  cm' <-  get
+  let cm = vector_color_refs . view parentRecord $ cm'
+  let colour = maybe (error $ "undefined colour " ++ [_c]) id $ Map.lookup _c cm
+  modify (set pen_colour colour)
+evalVI (SetPenWidth w) = modify (set pen_width w)
+evalVI (SetPenTransparency _t) = modify (set fill_trans _t)
+evalVI i@(PenUp _) = addPenPosM i
+evalVI i@(PenDraw _) = addPenPosM i
+evalVI (Circle _r) = do
+  renderBuffer 
+  st <- get
+  let (_cx,_cy) = st ^. pen_position
+      aR = A.r . SVG.toValue . toInteger $ _r
+      aCX = A.cx . SVG.toValue . toInteger $ _cx
+      aCY = A.cy . SVG.toValue . toInteger $ _cy
+      aStrokeWidth = A.strokeWidth . SVG.toValue $ 3 * (toInteger $ st ^. pen_width)
+      aFill = A.fill $ preEscapedStringValue "none"
+      aClass = A.class_ . preEscapedStringValue $
+               "stroke_" ++ T.unpack (st ^. pen_colour)
+  tell (SVG.circle ! aR ! aCX ! aCY ! aStrokeWidth ! aFill ! aClass)
+evalVI (PolygonMode m) = renderVerticeBuffer
+evalVI (OutlinePolygon) = renderVerticeBuffer
+evalVI (FillPolygon) = renderVerticeBuffer
+evalVI (SymbolCall sy o) = return ()
+
+
+
+
+addPenPosM i = do
+  st <- get
+  let (i', v) = addPenPos i
+      vb = st ^. verticeBuffer
+  modify (set verticeBuffer  $ vb ++ [i])
+  modify (set pen_position v)
+  
+addPenPos i@(PenUp v) = (i, v)
+addPenPos i@(PenDraw v) = (i, v)
+addPenPos i = error "addPenPos: only PenUp or PenDraw are allowed"
+
 
 
 renderSvg = renderSvg' $ SVG.svg
@@ -42,6 +172,21 @@ svgns = customAttribute "xmlns" $
 xlinkns = customAttribute "xmlns:xlink" $
           SVG.toValue ("http://www.w3.org/1999/xlink" :: String)
 
+
+
+renderVectorRecordDef :: VectorRecord r => (SVG.Svg -> SVG.Svg) -> Record r -> SVG.Svg
+renderVectorRecordDef ct rec =
+  let (_px, _py) = vector_pos rec
+      vname = vector_name rec
+      idA = A.id_ $ textValue vname
+      translateS = "translate("++ show (-1 * _px) ++ "," ++ show (-1 * _py) ++ ")"
+      translateA = A.transform $ stringValue translateS
+  in ct ! idA ! translateA $ do
+       customParent "desc" $ do SVG.toMarkup $ vector_xpo rec
+       renderVectorRecordDebug rec
+       readVIs rec
+
+
 renderDefs cschema lib = SVG.defs $ do
   svgColourLib lib cschema
   renderSymbolDefs lib
@@ -54,99 +199,40 @@ renderSymbolDef = renderVectorRecordDef SVG.symbol
 renderLineStyleDef = renderVectorRecordDef SVG.pattern
 renderPatternDef = renderVectorRecordDef SVG.pattern
 
-renderVectorRecordDef :: (SVG.Svg -> SVG.Svg) -> VectorRecord r => Record r -> SVG.Svg
-renderVectorRecordDef ct rec =
+renderVectorRecordDebug :: VectorRecord m => Record m -> Svg
+renderVectorRecordDebug rec = 
   let (_px, _py) = vector_pos rec
-      px = A.cx $ SVG.toValue $ toInteger _px 
-      py = A.cy $ SVG.toValue $ toInteger _py
       (_bx, _by) = vector_box_pos rec
       (_bw, _bh) = vector_box_size rec
+      px = A.cx $ SVG.toValue $ toInteger _px 
+      py = A.cy $ SVG.toValue $ toInteger _py
       boxx = A.x $ SVG.toValue $ toInteger _bx
       boxy = A.y $ SVG.toValue $ toInteger _by
       boxw = A.width $ SVG.toValue $ toInteger _bw
-      boxh = A.height $ SVG.toValue $ toInteger _bh
-      boxf = A.fill $ textValue "none"
-      boxs = A.stroke $ textValue "blue"
-      vname = vector_name rec
-      idA = A.id_ $ textValue vname
-      strokeBlack = A.stroke $ textValue "black"
-      fillRed  = A.fill $ textValue "red"
-      fillGreen  = A.fill $ textValue "blue"
-      translateS = "translate("++ show (-1 * _px) ++ "," ++ show (-1 * _py) ++ ")"
-      translateA = A.transform $ stringValue translateS
-  in ct ! idA ! translateA $ do
-       customParent "title" $ do SVG.toMarkup vname
-       customParent "desc" $ do SVG.toMarkup $ vector_xpo rec
-       SVG.g $ do 
-         SVG.rect ! boxx ! boxy ! boxw ! boxh ! boxf ! boxs
-         SVG.circle ! px ! py ! (A.r $ stringValue "10") ! strokeBlack ! fillRed
-
-
+      boxh = A.height $ SVG.toValue $ toInteger _bh      
+  in SVG.g $ do 
+    SVG.rect ! boxx ! boxy ! boxw ! boxh ! fillNone ! strokeBlue
+    SVG.circle ! px ! py ! (A.r $ stringValue "10") ! strokeBlack ! fillRed
+  where fillNone = A.fill $ textValue "none"
+        strokeBlue = A.stroke $ textValue "blue" 
+        strokeBlack = A.stroke $ textValue "black"
+        fillRed = A.fill $ textValue "red"
          
        
 useSymbol :: Integral t => t -> t -> Text -> Svg
-useSymbol x y i = 
+useSymbol _x _y i = 
   let ref = mconcat [ "#", i ]
       refA = A.xlinkHref . SVG.toValue $ ref
-      xA = A.x . SVG.toValue . toInteger $ x
-      yA = A.y . SVG.toValue . toInteger $ y      
+      xA = A.x . SVG.toValue . toInteger $ _x
+      yA = A.y . SVG.toValue . toInteger $ _y      
   in SVG.use ! refA ! xA ! yA
 
 
-data RenderState r =
-  RenderState { _parentRecord :: r
-              , _pen_colour :: Text
-              , _pen_width  :: Int16
-              , _fill_trans :: Int8
-              , _verticeBuffer :: [[VectorInstruction]]
-              }
-makeClassy ''RenderState
-
-type SVGRenderer r t = (VectorRecord r) => RWS VectorInstruction (RenderState r) Svg t
-
-addPenPosM i = do
-  vb <- fmap (view verticeBuffer) get
-  modify (set verticeBuffer  $ addPenPos i  vb)
-  
-addPenPos i@(PenUp v) = addPenPos' i
-addPenPos i@(PenDraw v) = addPenPos' i
-addPenPos i = error "addPenPos: only PenUp or PenDraw are allowed"
-
-addPenPos' v [] = [[v]]
-addPenPos' v ([] : _) = [[v]]
-addPenPos' v (is : bs) = (v : is) : bs
-
-lastPenPos st =
-  case (view verticeBuffer st) of
-   [] -> (0,0)
-   ([]:_) -> (0,0)
-   ((i:_):_) -> case (i) of
-                 PenUp v -> v
-                 PenDraw v -> v
-                 ui -> error "not a path instruction in vecticeBuffer"
- 
 
 
-evalVI (SetPenColour c) = do
-  cm <- fmap (vector_color_refs . view parentRecord ) get
-  let colour = maybe (error $ "undefined colour " ++ [c]) id $ Map.lookup c cm
-  modify (set pen_colour colour)
-evalVI (SetPenWidth w) = modify (set pen_width w)
-evalVI (SetPenTransparency t) = modify (set fill_trans t)
-evalVI i@(PenUp _) = addPenPosM i
-evalVI i@(PenDraw _) = do
-  addPenPosM i
-evalVI i@(Circle r) = do
-  (x,y) <- fmap lastPenPos get
-  let aR = A.r . SVG.toValue . show $ r
-      aX = A.x . SVG.toValue . show $ x
-      aY = A.y . SVG.toValue . show $ y
-  tell (SVG.circle ! aR ! aX ! aY)
-evalVI (PolygonMode m) = return ()
-evalVI (OutlinePolygon) = return ()
-evalVI (FillPolygon) = return ()
-evalVI (SymbolCall sy o) = return ()
-  
+
+
+                           
 --  fmap (view pen_colour)
 {-
 
