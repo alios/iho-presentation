@@ -39,8 +39,8 @@ data RenderState r =
               , _pen_position :: Vector2
               , _verticeBuffer :: [VectorInstruction]
               , _polygonMode :: Maybe PolygonMode
-              , _polygonBuffer1 :: (Vector2, [VectorInstruction])
-              , _polygonBuffer2 :: [VectorInstruction]
+              , _polygonBuffer1 :: (Maybe Vector2, [VectorInstruction])
+              , _polygonBuffer2 :: (Maybe Vector2, [VectorInstruction])
               }
 makeLenses ''RenderState
 
@@ -53,8 +53,8 @@ mkRenderState _r =
               , _verticeBuffer = mempty
               , _pen_position = (0,0)
               , _polygonMode = Nothing
-              , _polygonBuffer1 = (undefined, mempty)
-              , _polygonBuffer2 = mempty
+              , _polygonBuffer1 = (Nothing, mempty)
+              , _polygonBuffer2 = (Nothing, mempty)
               }
 
 readVIs :: VectorRecord r => Record r -> Svg
@@ -74,25 +74,46 @@ readVIs' s0 (i:is) =
   in w `mappend` res
 
 
-{-
-renderBuffer :: RenderAction ()
-renderBuffer = do
-  st <- get
-  case (st ^. polygonMode) of
-   Nothing -> renderVerticeBuffer
-   Just EnterPolygonMode -> renderPolygonBuffer 0
-   Just SubPolygon -> renderPolygonBuffer 1
-   Just pm -> fail $ "undefined polygon mode: " ++ show pm
-  -} 
+renderSinglePolygonBuffer :: (Maybe Vector2, [VectorInstruction]) -> Bool -> 
+                             RenderAction ()
+renderSinglePolygonBuffer (Nothing, _) _fill  =
+  fail $ "renderPolygonBuffer called on uninitailized Buffer"
+renderSinglePolygonBuffer (Just p0, pBuffer) _fill  = 
+  let pcmds = (map renderPathCmd $ (PenUp p0) : pBuffer) ++ [SVG.z]
+      aPath = A.d . mkPath $ sequence pcmds >> return ()
+  in do
+    st <- get
+    let penColour = st ^. pen_colour
+        stClass =
+          if (_fill) then T.concat ["fill_", penColour]
+                     else T.concat ["stroke_", penColour]
+        aClass = A.class_ $ SVG.toValue stClass
+        aArg =
+          if (_fill) then A.stroke $ preEscapedStringValue "none"
+                     else A.fill $ preEscapedStringValue "none"
+    tell $ SVG.path ! aPath ! aClass ! aArg
 
 renderPolygonBuffer :: Bool -> RenderAction ()
 renderPolygonBuffer _fill = do
-  st <- get
---  let x = polygonBuffer.element i
---  let (p0, is) = maybe (error "") id $ st ^.. polygonBuffer $  at i
+  s <- get
+  tryPolygonBuffer _fill polygonBuffer1
+  tryPolygonBuffer _fill polygonBuffer2
+  modify (set pen_position $
+          maybe (error "unable to restore PenPosition") id $
+          fst $ s ^. polygonBuffer1)
+
+type PolygonBufferLens = Functor f => ((Maybe Vector2, [VectorInstruction]) -> f (Maybe Vector2, [VectorInstruction])) -> RenderState r0 -> f (RenderState r0)
+
+tryPolygonBuffer :: Bool -> PolygonBufferLens -> RenderAction ()
+tryPolygonBuffer _fill l = do
+  _s <- get
+  case (_s ^. l) of
+   (Nothing, _) -> return ()
+   buf@(Just _, _) ->
+     do renderSinglePolygonBuffer buf _fill
+        modify (set l (Nothing, []))
+                         
       
-  return ()
-  
 
 renderVerticeBuffer :: RenderAction ()
 renderVerticeBuffer = do
@@ -103,7 +124,7 @@ renderVerticeBuffer = do
       aFillNone = A.fill $ preEscapedStringValue "none"
       aClass = A.class_ . preEscapedStringValue $
                "stroke_" ++ T.unpack (st ^. pen_colour)
-      aPath = A.d . mkPath $ sequence pcmds >> return ()        
+      aPath = A.d . mkPath $ sequence pcmds >> return ()      
   tell $ SVG.path ! aStrokeWidth ! aFillNone ! aClass ! aPath
   put st { _verticeBuffer = mempty }
   return ()
@@ -147,12 +168,12 @@ evalVI (PolygonMode EnterPolygonMode) = do
   st <- get
   case (st ^. polygonMode) of
    Just _m -> fail $ "must not be in polygonMode: " ++ show _m
-   Nothing -> put $ st { _polygonBuffer1 = (st ^. pen_position, [])
+   Nothing -> put $ st { _polygonBuffer1 = (Just $ st ^. pen_position, [])
                        , _polygonMode = Just EnterPolygonMode
                        }
 evalVI (PolygonMode SubPolygon) = do
   st <- get
-  put $ st { _polygonBuffer2 = [],
+  put $ st { _polygonBuffer2 = (Just $ st ^. pen_position, []),
              _polygonMode = Just SubPolygon
            }
 evalVI (PolygonMode PolygonDone) = do
@@ -162,7 +183,7 @@ evalVI (PolygonMode PolygonDone) = do
    Just _m -> 
      let pBuffer1 = st ^. polygonBuffer1
      in put st { _polygonMode = Nothing
-               , _pen_position = fst pBuffer1
+               , _pen_position = maybe (error "polygonBuffer1 no pos") id $ fst pBuffer1
                }
 evalVI (OutlinePolygon) = renderPolygonBuffer False
 evalVI (FillPolygon) = renderPolygonBuffer True
@@ -175,11 +196,11 @@ addPenPosM i = do
   let (i', v) = addPenPos i      
   modify (set pen_position v)
   let (o1 , pb1is) = st ^. polygonBuffer1
-      pb2is = st ^. polygonBuffer2
+      (o2 , pb2is) = st ^. polygonBuffer2
   case (st ^. polygonMode) of
        Nothing -> modify (set verticeBuffer  $ (st ^. verticeBuffer) ++ [i])
        Just EnterPolygonMode -> modify (set polygonBuffer1 (o1, pb1is ++ [i]))
-       Just SubPolygon -> modify (set polygonBuffer2 (pb1is ++ [i]))       
+       Just SubPolygon ->       modify (set polygonBuffer2 (o2, pb1is ++ [i]))       
 addPenPos i@(PenUp v) = (i, v)
 addPenPos i@(PenDraw v) = (i, v)
 addPenPos i = error "addPenPos: only PenUp or PenDraw are allowed"
