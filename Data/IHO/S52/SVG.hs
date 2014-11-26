@@ -230,9 +230,7 @@ renderVectorRecordDef pref ct rec =
   let (_px, _py) = vector_pos rec
       vname = vector_name rec
       idA = A.id_ $ textValue $ mconcat [pref, vname]
-      translateS = "translate("++ show (-1 * _px) ++ "," ++ show (-1 * _py) ++ ")"
-      translateA = A.transform $ stringValue translateS
-  in ct ! idA ! translateA $ do
+  in ct ! idA $ do
        customParent "desc" $ do SVG.toMarkup $ vector_xpo rec
 --       renderVectorRecordDebug rec
        readVIs rec
@@ -251,28 +249,88 @@ renderSymbolDef m =
   let svg = renderVectorRecordDef "symb_" SVG.symbol m
       (_x_, _y_) = vector_box_pos m
       (_w_, _h_) = vector_box_size m
+      (_px, _py) = vector_pos m
       lwOff = 30 * 10
       _x = _x_ - lwOff
       _y = _y_ - lwOff
       _w = _w_ + (2 * lwOff)
       _h = _h_ + (2 * lwOff)
       vbs = mconcat [ show _x, " ", show _y, " ", show _w, " ", show _h ]
-  in svg ! (A.viewbox $ SVG.toValue vbs) !
+      translateS = "translate("++ show (-1 * _px) ++ "," ++ show (-1 * _py) ++ ")"
+      translateA = A.transform $ stringValue translateS
+  in svg ! (A.viewbox $ SVG.toValue vbs) ! translateA !
        (A.width $ SVG.toValue . toInteger $ _w) !
        (A.height $ SVG.toValue . toInteger $ _h) 
 
 
-renderLineStyleDef = renderPatternDef
-renderPatternDef m =
+renderLineStyleDef m =
   let svg = (renderVectorRecordDef "patt_" SVG.pattern m)
       (_x, _y) = vector_box_pos m
       (_w, _h) = vector_box_size m
+      (_px, _py) = vector_pos m
+      translateS = "translate("++ show (-1 * _x) ++ "," ++ show (-1 * _y) ++ ")"
+      translateA = A.patterntransform $ stringValue translateS
   in  svg ! (A.patternunits $ textValue "userSpaceOnUse") !
-       (A.x $ SVG.toValue . toInteger $ _x) !
-       (A.y $ SVG.toValue . toInteger $ _x) !
        (A.width $ SVG.toValue . toInteger $ _w) !
-       (A.height $ SVG.toValue . toInteger $ _h) 
+       (A.height $ SVG.toValue . toInteger $ _h) ! translateA
+
+{-
+renderPatternDef m =
+  let svg' = (renderVectorRecordDef "patt_" SVG.pattern m)
+      (_px, _py) = vector_pos m
+      _min = patt_pami m
+      _min2 = _min * 2
+      translateS = "translate("++ show (-1 * _px) ++ "," ++ show (-1 * _py) ++ ")"
+      translateA = A.patterntransform $ stringValue translateS
+      svg = svg' ! (A.patternunits $ textValue "userSpaceOnUse") 
+  in case (patt_patp m) of
+      LinearPattern ->
+        svg ! (A.width $ SVG.toValue . toInteger $ _min) !
+        (A.height $ SVG.toValue . toInteger $ _min) !
+        translateA
+      StaggeredPattern -> SVG.g $ do
+        svg
+        svg
         
+-}
+
+renderPatternDef m =
+  let idA = A.id_ $ textValue $ mconcat ["patt_", vector_name m]
+      unitsA = A.patternunits $ textValue "userSpaceOnUse"
+      _min = patt_pami m
+      _min2 = _min * 2
+      (_px, _py) = vector_pos m
+      (_bx, _by) = vector_box_pos m
+      (_bw, _bh) = vector_box_size m
+      intA a = a . SVG.toValue . toInteger
+      translateS _x _y = concat ["translate(", show _x, ",", show _y, ")"]
+      translateA = A.patterntransform . stringValue $ translateS (-1 * _px) (-1 * _py) 
+      ps = readVIs m      
+      patternDef = SVG.pattern ! idA ! unitsA ! translateA
+      desc = customParent "desc" $ do SVG.toMarkup $ vector_xpo m
+  in case (patt_patp m) of
+      LinearPattern -> patternDef ! (intA A.width _bw) ! (intA A.height _bh) ! (intA A.x _bx) ! (intA A.y _by) $ do
+        desc
+        ps        
+      StaggeredPattern -> patternDef ! (intA A.width _min2) ! (intA A.height _min2) $ do
+        desc
+        ps
+        ps ! (A.transform $ stringValue $ translateS _min _min)
+
+        
+{-
+
+renderVectorRecordDef :: VectorRecord r => Text -> (SVG.Svg -> SVG.Svg) -> Record r -> SVG.Svg
+renderVectorRecordDef pref ct rec =
+  let (_px, _py) = vector_pos rec
+      vname = vector_name rec
+      idA = A.id_ $ textValue $ mconcat [pref, vname]
+  in ct ! idA $ do
+       customParent "desc" $ do SVG.toMarkup $ vector_xpo rec
+--       renderVectorRecordDebug rec
+       readVIs rec
+-}
+
 
 renderVectorRecordDebug :: VectorRecord m => Record m -> Svg
 renderVectorRecordDebug rec = 

@@ -55,25 +55,25 @@ parsePatternSpacing = do
 
 instance Module Pattern where
     data Record Pattern =
-        PatternEntry { patt_modn :: ! Text 
-                     , patt_rcid :: ! Int16
-                     , patt_stat :: ! Text
-                     , patt_panm :: ! Text
-                     , patt_padf :: ! DrawingType
-                     , patt_patp :: ! FillPattern
-                     , patt_pasp :: ! PatternSpacing
-                     , patt_pami :: ! Int16
-                     , patt_pama :: ! Int16
-                     , patt_pacl :: ! Int16                             
-                     , patt_parw :: ! Int16
-                     , patt_pahl :: ! Int16
-                     , patt_pavl :: ! Int16
-                     , patt_pbxc :: ! Int16
-                     , patt_pbxr :: ! Int16
-                     , patt_pxpo :: ! Text
-                     , patt_pcrf :: ! [(Char, Text)]
-                     , patt_pbtm :: ! [Text]
-                     , patt_pvct :: ! [[VectorInstruction]]
+        PatternEntry { patt_modn :: ! Text -- ^ Module Identifier (Module Name)
+                     , patt_rcid :: ! Int16 -- ^ Record Identifier
+                     , patt_stat :: ! Text -- ^ status of module contents
+                     , patt_panm :: ! Text -- ^ name of the pattern
+                     , patt_padf :: ! DrawingType -- ^ type of pattern definition
+                     , patt_patp :: ! FillPattern -- ^ type of fill pattern
+                     , patt_pasp :: ! PatternSpacing -- ^ pattern-symbol spacing
+                     , patt_pami :: ! Int16 -- ^ minimum distance between pattern symbol covers (bounding box + pivot point)
+                     , patt_pama :: ! Int16 -- ^ maximum distance between pattern symbols covers (bounding box + pivot point)
+                     , patt_pacl :: ! Int16 -- ^ pivot-points column-number
+                     , patt_parw :: ! Int16 -- ^ pivot-points row-number
+                     , patt_pahl :: ! Int16 -- ^ width of bounding box
+                     , patt_pavl :: ! Int16 -- ^ height of bounding box
+                     , patt_pbxc :: ! Int16 -- ^ bounding box upper left column number
+                     , patt_pbxr :: ! Int16 -- ^ bounding box upper left row number
+                     , patt_pxpo :: ! Text -- ^ free text for symbology explanation
+                     , patt_pcrf :: ! [(Char, Text)] -- ^ 'ColourTable' reference map
+                     , patt_pbtm :: ! [Text] -- ^ raster image rows
+                     , patt_pvct :: ! [[VectorInstruction]] -- ^ Pattern vector
                      } deriving (Show, Eq)
     module_modn = patt_modn
     module_rcid = patt_rcid
