@@ -71,17 +71,17 @@ type RenderAction t = (VectorRecord r) => RWS VectorInstruction Svg (RenderState
    
 evalVI :: VectorInstruction -> RenderAction ()
 evalVI (SetPenColour _c) = do
-  st <-  get
-  setter <- case (st ^. polygonMode) of
+  st' <-  get
+  setter <- case (st' ^. polygonMode) of
         Nothing ->
-          let buffer' = bufferM st mainBuffer "mainbuffer undefined"
+          let buffer' = bufferM st' mainBuffer "mainbuffer undefined"
           in if ((buffer' ^. bufferInstructions) == mempty)
              then return mainBuffer
              else renderVerticeBuffer >> return mainBuffer
         Just EnterPolygonMode -> return polygonBuffer1
         Just SubPolygon -> return polygonBuffer2 
-        Just x -> fail "undefined RenderMode"
-        
+        Just _ -> fail "undefined RenderMode"
+  st <- get      
   let cm = vector_color_refs . view parentRecord $ st
   let colour = if (_c == '@') then "none"
                else maybe (error $ "undefined colour " ++ [_c]) id $ Map.lookup _c cm
@@ -96,16 +96,17 @@ evalVI (SetPenColour _c) = do
   return () --modify (set setter colour)
   
 evalVI (SetPenWidth w) = do
-  st <-  get
-  setter <- case (st ^. polygonMode) of
+  st' <-  get
+  setter <- case (st' ^. polygonMode) of
         Nothing ->
-          let buffer' = bufferM st mainBuffer "mainbuffer undefined"
+          let buffer' = bufferM st' mainBuffer "mainbuffer undefined"
           in if ((buffer' ^. bufferInstructions) == mempty)
              then return mainBuffer
              else renderVerticeBuffer >> return mainBuffer
         Just EnterPolygonMode -> return polygonBuffer1
         Just SubPolygon -> return polygonBuffer2 
         Just x -> fail "undefined RenderMode"
+  st <- get      
   let buffer' = bufferM st setter  "parent buffer undefined"
   let newBuffer = Just $ buffer'{ _bufferPenWidth = w * 30 }
   case (st ^. polygonMode) of
@@ -115,16 +116,17 @@ evalVI (SetPenWidth w) = do
    Just _ -> fail "undefined case"
   
 evalVI (SetPenTransparency _t) = do
-  st <-  get
-  setter <- case (st ^. polygonMode) of
+  st' <-  get
+  setter <- case (st' ^. polygonMode) of
         Nothing ->
-          let buffer' = bufferM st mainBuffer "mainbuffer undefined"
+          let buffer' = bufferM st' mainBuffer "mainbuffer undefined"
           in if ((buffer' ^. bufferInstructions) == mempty)
              then return mainBuffer
              else renderVerticeBuffer >> return mainBuffer
         Just EnterPolygonMode -> return polygonBuffer1
         Just SubPolygon -> return polygonBuffer2 
         Just x -> fail "undefined RenderMode"
+  st <- get
   let buffer' = bufferM st setter  "parent buffer undefined"
   let newBuffer = Just $ buffer'{ _bufferFillTrans = _t }
   case (st ^. polygonMode) of
@@ -136,16 +138,17 @@ evalVI (SetPenTransparency _t) = do
 evalVI i@(PenUp _) = addPenPosM i
 evalVI i@(PenDraw _) = addPenPosM i
 evalVI (Circle _r) = do
-  st <- get
-  buffer <- case (st ^. polygonMode) of
+  st' <- get
+  buffer <- case (st' ^. polygonMode) of
         Nothing ->
-          let buffer' = bufferM st mainBuffer "mainbuffer undefined"
+          let buffer' = bufferM st' mainBuffer "mainbuffer undefined"
           in if ((buffer' ^. bufferInstructions) == mempty)
                    then return (mainBuffer)
                    else renderVerticeBuffer >> return (mainBuffer)
         Just EnterPolygonMode -> return  polygonBuffer1
         Just SubPolygon -> return polygonBuffer2
         Just x -> fail "undefined RenderMode"
+  st <- get
   let buffer' = bufferM st buffer "unable to locate buffer"
   let (_cx,_cy) = _bufferPenPos buffer'
       aR = A.r . SVG.toValue . toInteger $ _r
