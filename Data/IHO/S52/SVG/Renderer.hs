@@ -44,7 +44,7 @@ data RendererState =
     penWidth :: Integer,
     penColour :: Text,
     inPolygon :: Bool,
-    fillTrans :: Double,
+    fillTrans :: Float,
     lineBuffer :: [VectorInstruction],
     polygonBuffers :: [PolygonBuffer]
     }
@@ -165,17 +165,21 @@ renderPathCmd (PenUp (x, y)) = SVG.m x y
 renderPathCmd (PenDraw (x, y)) = SVG.l x y
 renderPathCmd _c = fail $ "undefined Path Command: " ++ show _c
 
--- | renders and clears the Line Buffer
+-- | renders and clears the (non empty) Line Buffer
 renderLineBuffer :: RenderAction ()
 renderLineBuffer = do
   st <- get
-  let _is = map renderPathCmd $ lineBuffer st
-      pathA = A.d . SVG.mkPath $ sequence _is >> return ()
-      classA = A.class_ . SVG.textValue . mconcat $ ["fill_none stroke_", penColour st]
-      strokeWA = A.strokeWidth . SVG.toValue . toInteger . penWidth $ st
-  tell $ SVG.path ! classA ! pathA ! strokeWA
-  put st { lineBuffer = mempty }
-  return ()
+  let lb = lineBuffer st
+  case lb of
+   [] -> return ()
+   _ ->  
+     let _is = map renderPathCmd lb
+         pathA = A.d . SVG.mkPath $ sequence _is >> return ()
+         classA = A.class_ . SVG.textValue . mconcat $ ["fill_none stroke_", penColour st]
+         strokeWA = A.strokeWidth . SVG.toValue . toInteger . penWidth $ st
+     in do tell $ SVG.path ! classA ! strokeWA ! pathA 
+           put st { lineBuffer = mempty }
+           return ()
   
 
 -- | renders and clear the Polygon Buffers
@@ -201,11 +205,11 @@ renderPolygonBuffer fill (p0, xs) =
         fillOA = A.fillOpacity . SVG.toValue . fillTrans $ st
         strokeWA = A.strokeWidth . SVG.toValue . toInteger . penWidth $ st
     if (fill)
-         then do tell $ SVG.path ! classA ! pathA ! fillOA
+         then do tell $ SVG.path ! fillOA ! classA ! pathA 
                  _ <- sequence $ map (\(r, cx, cy) ->
                                        tell $ svgCircle r cx cy ! classA ! fillOA) _cs
                  return ()
-         else do tell $ SVG.path ! classA ! pathA ! strokeWA
+         else do tell $ SVG.path ! classA ! strokeWA ! pathA 
                  _ <- sequence $ map (\(r, cx, cy) ->
                                        tell $ svgCircle r cx cy ! classA) _cs
                  return ()
