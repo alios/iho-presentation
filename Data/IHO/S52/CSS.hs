@@ -42,11 +42,16 @@ style_ _title child =
 
 cdata :: Builder -> Markup
 cdata txt = preEscapedToMarkup $ mconcat [ "<![CDATA["
-                                         , ".stroke_none{stroke: none} "
-                                         , ".fill_none{fill: none} "
+                                         , addition
                                          , toLazyText txt
                                          , "]]>"]
 
+addition =
+  mconcat 
+    [ ".s52 { stroke-linecap: square } "
+    , ".stroke_none{stroke: none} "
+    , ".fill_none{fill: none} "
+    ]
 
 buildColourMap :: ColourMap -> Builder
 buildColourMap =

@@ -103,7 +103,8 @@ evalVectorInstruction i@(Circle r) = do
     else do renderLineBuffer
             let (x, y) = penPos st
                 strokeWA = A.strokeWidth . SVG.toValue . toInteger . penWidth $ st
-                classA = A.class_ . SVG.textValue . mconcat $ ["fill_none stroke_", penColour st]
+                classA = A.class_ . SVG.textValue . mconcat $ ["s52 fill_none stroke_"
+                                                              , penColour st]
             tell $ svgCircle r x y ! classA ! strokeWA
 evalVectorInstruction (PolygonMode EnterPolygonMode) = do
   st <- get
@@ -175,7 +176,7 @@ renderLineBuffer = do
    _ ->  
      let _is = map renderPathCmd lb
          pathA = A.d . SVG.mkPath $ sequence _is >> return ()
-         classA = A.class_ . SVG.textValue . mconcat $ ["fill_none stroke_", penColour st]
+         classA = A.class_ . SVG.textValue . mconcat $ ["s52 fill_none stroke_", penColour st]
          strokeWA = A.strokeWidth . SVG.toValue . toInteger . penWidth $ st
      in do tell $ SVG.path ! classA ! strokeWA ! pathA 
            put st { lineBuffer = mempty }
@@ -200,8 +201,8 @@ renderPolygonBuffer fill (p0, xs) =
     st <- get
     let classA = A.class_ . SVG.textValue .  mconcat $
                  if (fill)
-                 then ["stroke_none fill_", penColour st]
-                 else ["fill_none stroke_", penColour st]
+                 then ["s52 stroke_none fill_", penColour st]
+                 else ["s52 fill_none stroke_", penColour st]
         fillOA = A.fillOpacity . SVG.toValue . fillTrans $ st
         strokeWA = A.strokeWidth . SVG.toValue . toInteger . penWidth $ st
     if (fill)

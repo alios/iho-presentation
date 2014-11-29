@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.IHO.S52.SVG (renderSvg, renderSvg', useSymbol) where
+module Data.IHO.S52.SVG ( renderSvg, renderSvg'
+                        , useSymbol, lineStyleStroke, patternFill) where
 
 import Data.IHO.S52.Types
 import Data.IHO.S52.SVG.SymbolDef

@@ -37,6 +37,11 @@ svgTranslate _x _y =
  let translateS = mconcat [ "translate(",  show _x, ",", show _y,  ")" ]
  in A.transform $ SVG.stringValue translateS
 
+svgPatternTranslate :: (Show i, Num i) => i -> i -> SVG.Attribute
+svgPatternTranslate _x _y =       
+ let translateS = mconcat [ "translate(",  show _x, ",", show _y,  ")" ]
+ in A.patterntransform $ SVG.stringValue translateS
+
 
 svgDesc :: (SVG.ToMarkup m) => m -> Svg
 svgDesc = SVG.customParent "desc" . SVG.toMarkup 
@@ -49,15 +54,24 @@ svgCircle r cx cy =
       _r  = A.r . SVG.toValue . toInteger $ r
   in SVG.circle ! _cx ! _cy ! _r
 
+
+symbolPrefix :: Text
+symbolPrefix = "symb_"
+
 useSymbol :: Integral i => i -> i -> Text -> Svg
 useSymbol x y i = 
   let ref = mconcat [ "#", symbolPrefix , i ]
       refA = A.xlinkHref . SVG.toValue $ ref
   in SVG.use ! refA ! svgX x ! svgY y
 
-
-symbolPrefix :: Text
-symbolPrefix = "symb_"
-
 patternPrefix :: Text
 patternPrefix = "patt_"
+
+patternFill :: Text -> SVG.Attribute
+patternFill n = A.fill . SVG.preEscapedTextValue . mconcat $ ["url(#patt_",n,")" ]
+
+lineStylePrefix :: Text
+lineStylePrefix = "lnst_"
+
+lineStyleStroke :: Text -> SVG.Attribute
+lineStyleStroke n = A.stroke . SVG.preEscapedTextValue . mconcat $ ["url(#patt_",n,")" ]
