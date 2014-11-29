@@ -30,12 +30,10 @@ renderPatternDef patt =
      LinearPattern -> pattDef ! svgWidth tw ! svgHeight th $
                       do pattDesc
                          ps        
-     StaggeredPattern -> pattDef ! svgWidth (tw * 2) ! svgHeight (th * 2) $ do
-       pattDesc
-       ps
-       ps ! svgTranslate tw th
-
-
+     StaggeredPattern -> pattDef ! svgWidth (tw * 2) ! svgHeight (th * 2) $
+                         do pattDesc
+                            ps
+                            ps ! svgTranslate tw th
 
 renderPattern :: Record Pattern -> Svg 
 renderPattern patt = renderVectorInstructions (patt_pcrf patt) (mconcat . patt_pvct $ patt)

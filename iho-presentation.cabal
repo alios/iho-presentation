@@ -10,7 +10,7 @@ name:                iho-presentation
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.5.0
+version:             0.6.0
 
 -- A short (one-line) description of the package.
 synopsis:            an haskell implementation of IHO S-52
@@ -62,12 +62,16 @@ library
                       Data.IHO.S52.Types.LineStyle
                       Data.IHO.S52.Preslib40
                       Data.IHO.S52.PresentationLib
+                      Data.IHO.S52.SVG
+                      Data.IHO.S52.CSS
 
   -- Modules included in this library but not exported.
   other-modules:      Data.IHO.S52.Types.Helper
                       Data.IHO.S52.QuasiQuote
-                      Data.IHO.S52.CSS
-                      Data.IHO.S52.SVG
+                      Data.IHO.S52.SVG.SymbolDef
+                      Data.IHO.S52.SVG.LineStyleDef
+                      Data.IHO.S52.SVG.PatternDef
+                      Data.IHO.S52.SVG.Helper
 
   
   -- LANGUAGE extensions used by modules in this package.

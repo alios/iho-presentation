@@ -71,7 +71,7 @@ instance Module Pattern where
                      , patt_pbxc :: ! Int16 -- ^ bounding box upper left column number
                      , patt_pbxr :: ! Int16 -- ^ bounding box upper left row number
                      , patt_pxpo :: ! Text -- ^ free text for symbology explanation
-                     , patt_pcrf :: ! [(Char, Text)] -- ^ 'ColourTable' reference map
+                     , patt_pcrf :: ! (Map Char Text) -- ^ 'ColourTable' reference map
                      , patt_pbtm :: ! [Text] -- ^ raster image rows
                      , patt_pvct :: ! [[VectorInstruction]] -- ^ Pattern vector
                      } deriving (Show, Eq)
@@ -130,7 +130,7 @@ instance Module Pattern where
                  , patt_pbxc = pbxc
                  , patt_pbxr = pbxr
                  , patt_pxpo = pxpo
-                 , patt_pcrf = pcrf
+                 , patt_pcrf = Map.fromList pcrf
                  , patt_pbtm = pbtm
                  , patt_pvct = pvct
                  }
@@ -142,7 +142,7 @@ instance VectorRecord Pattern where
     vector_pos s = (patt_pacl s, patt_parw s)
     vector_box_size s = (patt_pahl s, patt_pavl s)
     vector_box_pos s = (patt_pbxc s, patt_pbxr s)
-    vector_color_refs = Map.fromList . patt_pcrf 
+    vector_color_refs = patt_pcrf 
     vector_xpo = patt_pxpo
     vector_vct = patt_pvct
     vector_name = patt_panm

@@ -19,8 +19,10 @@ import Text.Blaze.Svg11.Attributes as A
 import Text.Blaze.Internal
 import Text.Blaze
 import Data.List
+import Data.Text (Text)
 
-svgColourLib :: Library -> Maybe Data.Text.Text -> Svg
+
+svgColourLib :: Library -> Maybe Text -> Svg
 svgColourLib lib Nothing = colourMapStyle $ (lib_cols lib) !! 0
 svgColourLib lib (Just schema) =
   let rec' = find (\_r -> cols_ctus _r == schema) $ lib_cols lib
@@ -39,7 +41,11 @@ style_ _title child =
   in customParent "style" ! stA ! stT $ cdata child  
 
 cdata :: Builder -> Markup
-cdata txt = preEscapedToMarkup $ mconcat ["<![CDATA[", toLazyText txt, "]]>"]
+cdata txt = preEscapedToMarkup $ mconcat [ "<![CDATA["
+                                         , ".stroke_none{stroke: none} "
+                                         , ".fill_none{fill: none} "
+                                         , toLazyText txt
+                                         , "]]>"]
 
 
 buildColourMap :: ColourMap -> Builder
@@ -54,9 +60,6 @@ buildColourMapEntry' (ctok, (col, nm)) att =
 
 buildColourMapEntry :: (Data.Text.Text, ColourMapEntry) -> Builder
 buildColourMapEntry e = mconcat $ map (buildColourMapEntry' e) ["stroke", "fill"]
-
---x :: Data.Text.Text -> ColourMap -> Builder
---x a cm = map (buildColourMapEntry a) . Map.toList
 
 toCssColour :: CIEXYZ Double -> Data.Text.Text
 toCssColour col =

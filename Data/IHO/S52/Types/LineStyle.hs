@@ -13,6 +13,7 @@ import Data.Attoparsec.Text
 import Data.IHO.S52.Types.Module
 import Data.IHO.S52.Types.Vector
 import Data.IHO.S52.Types.Helper
+import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -32,7 +33,7 @@ instance Module LineStyle where
                        , lnst_lbxc :: ! Int16
                        , lnst_lbxr :: ! Int16    
                        , lnst_lxpo :: ! Text
-                       , lnst_lcrf :: ! [(Char, Text)]
+                       , lnst_lcrf :: ! (Map Char Text)
                        , lnst_lvct :: ! [[VectorInstruction]]
                        } deriving (Show, Eq)
     module_modn = lnst_modn
@@ -75,7 +76,7 @@ instance Module LineStyle where
                  , lnst_lbxc = lbxc
                  , lnst_lbxr = lbxr
                  , lnst_lxpo = lxpo
-                 , lnst_lcrf = lcrf
+                 , lnst_lcrf = Map.fromList lcrf
                  , lnst_lvct = lvct
                  }
 
@@ -83,7 +84,7 @@ instance VectorRecord LineStyle where
     vector_pos s = (lnst_licl s, lnst_lirw s)
     vector_box_size s = (lnst_lihl s, lnst_livl s)
     vector_box_pos s = (lnst_lbxc s, lnst_lbxr s)
-    vector_color_refs = Map.fromList . lnst_lcrf 
+    vector_color_refs = lnst_lcrf 
     vector_xpo = lnst_lxpo
     vector_vct = lnst_lvct
     vector_name = lnst_linm

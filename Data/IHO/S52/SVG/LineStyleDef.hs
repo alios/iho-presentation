@@ -12,8 +12,8 @@ import Data.IHO.S52.SVG.Helper
 import Data.IHO.S52.SVG.Renderer
 
 
-renderPatternDef :: Record LineStyle -> Svg 
-renderPatternDef lnst =
+renderLineStyleDef :: Record LineStyle -> Svg 
+renderLineStyleDef lnst =
   let (x, y) = vector_box_pos lnst
       (w, h) = vector_box_size lnst
       (px, py) = vector_pos lnst
