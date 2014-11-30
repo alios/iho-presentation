@@ -52,7 +52,7 @@ fromVector2 :: Vector2 -> Coordinate
 fromVector2 (xi,yi) =
   let (x, y) = (fromIntegral xi, fromIntegral yi)
       l = sqrt ((x*x) + (y*y))
-      phi = atan2 x y 
+      phi = ((atan2 x y) - (pi / 2)) * (-1)
   in Coordinate l phi
 
 toDegree :: Double -> Double
@@ -77,7 +77,7 @@ drawLines lib ls ps =
 drawLines' :: Record LineStyle  -> Double -> [Vector2] -> Svg
 drawLines' lnst off (p1:p2:ps) =
   let (rsvg, roff) = drawLine' lnst off p1 p2
-  in rsvg `mappend` drawLines' lnst roff ps
+  in rsvg `mappend` drawLines' lnst roff (p2 : ps)
 drawLines' _ _ _ = mempty
 
 
@@ -92,7 +92,7 @@ drawLine' lnst off p1@(x1,y1) (x2, y2) =
       _l = l - off
       rotateA = A.transform $ SVG.rotate $ toDegree phi
       (svg, roff) = drawLineSegs off name lsl _l (fromIntegral x1) (fromIntegral y1)
-  in (SVG.g ! (svgWidth l) ! (svgHeight lsh) ! rotateA $ svg, roff)
+  in (SVG.g ! (svgX x1) ! (svgY y1) ! rotateA $ svg, roff)
      
 
 drawLineSegs :: Double -> Text -> Double -> Double -> Double -> Double -> (Svg, Double)
@@ -103,7 +103,7 @@ drawLineSegs off name lsl l x y
       let _lsl = lsl - off
           (rsvg, rl) = drawLineSegs 0 name lsl (l - _lsl) (x + _lsl) y
           lsegoff = useLineStyle (round x) (round y) name !
-                    (svgWidth _lsl) ! (svgTranslate (-off) 0)
+                    (svgWidth _lsl) ! (svgTranslate (off) 0)
       in (lsegoff `mappend` rsvg, rl)
   | (l <= lsl) =
       (useLineStyle (round x) (round y) name ! (svgWidth l), l)
