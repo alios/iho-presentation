@@ -27,10 +27,10 @@ renderPatternDef patt =
       pattDesc = svgDesc $ vector_xpo patt
       ps = renderPattern patt
   in case (patt_patp patt) of
-     LinearPattern -> pattDef ! svgWidth tw ! svgHeight th $
+     LinearPattern -> pattDef ! svgWidth (toInteger tw) ! svgHeight (toInteger th) $
                       do pattDesc
                          ps        
-     StaggeredPattern -> pattDef ! svgWidth (tw * 2) ! svgHeight (th * 2) $
+     StaggeredPattern -> pattDef ! svgWidth (toInteger $ tw * 2) ! svgHeight (toInteger $ th * 2) $
                          do pattDesc
                             ps
                             ps ! svgTranslate tw th

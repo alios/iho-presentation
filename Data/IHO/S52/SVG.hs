@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.IHO.S52.SVG ( renderSvg, renderSvg'
-                        , useSymbol, lineStyleStroke, patternFill) where
+                        , useSymbol, drawLine, drawLines, patternFill) where
 
 import Data.IHO.S52.Types
 import Data.IHO.S52.SVG.SymbolDef
@@ -16,6 +16,7 @@ import qualified Text.Blaze.Internal as SVG
 import qualified Text.Blaze.Svg11 as SVG
 import qualified Text.Blaze.Svg11.Attributes as A
 import Data.Text (Text)
+import Data.IHO.S52.PresentationLib
 
 renderSvg :: Maybe Text -> Library -> Svg -> Svg
 renderSvg = renderSvg' $ SVG.svg
@@ -43,25 +44,70 @@ renderDefs cschema lib = SVG.defs $ do
         renderLineStyleDefs = mconcat . fmap renderLineStyleDef . lib_lnst
         renderPatternDefs = mconcat . fmap renderPatternDef . lib_patt
 
-{-
-renderVectorRecordDebug :: VectorRecord m => Record m -> Svg
-renderVectorRecordDebug rec = 
-  let (_px, _py) = vector_pos rec
-      (_bx, _by) = vector_box_pos rec
-      (_bw, _bh) = vector_box_size rec
-      px = A.cx $ SVG.toValue $ toInteger _px 
-      py = A.cy $ SVG.toValue $ toInteger _py
-      boxx = A.x $ SVG.toValue $ toInteger _bx
-      boxy = A.y $ SVG.toValue $ toInteger _by
-      boxw = A.width $ SVG.toValue $ toInteger _bw
-      boxh = A.height $ SVG.toValue $ toInteger _bh      
-  in SVG.g $ do 
-    SVG.rect ! boxx ! boxy ! boxw ! boxh ! fillNone ! strokeBlue
-    SVG.circle ! px ! py ! (A.r $ stringValue "10") ! strokeBlack ! fillRed
-  where fillNone = A.fill $ textValue "none"
-        strokeBlue = A.stroke $ textValue "blue" 
-        strokeBlack = A.stroke $ textValue "black"
-        fillRed = A.fill $ textValue "red"
-         
-       
--}
+
+
+data Coordinate = Coordinate Double Double
+
+fromVector2 :: Vector2 -> Coordinate
+fromVector2 (xi,yi) =
+  let (x, y) = (fromIntegral xi, fromIntegral yi)
+      l = sqrt ((x*x) + (y*y))
+      phi = atan2 x y 
+  in Coordinate l phi
+
+toDegree :: Double -> Double
+toDegree i = (i * 180) / pi 
+fromDegree :: Double -> Double
+fromDegree i =  (i * pi) / 180
+
+toVector2 :: Coordinate -> Vector2
+toVector2 (Coordinate l phi) =
+  (round $ l * cos phi, round $ l * sin phi)
+
+drawLine :: PresentationLib lib => lib -> Text -> Vector2 -> Vector2 -> Svg
+drawLine lib ls p0 p1 = drawLines lib ls [p0,p1]
+
+drawLines :: PresentationLib lib => lib -> Text -> [Vector2] -> Svg
+drawLines lib ls ps =
+  let r = maybe (error "unable to lookupLineStyle") id  $
+          lookupLineStyle ls lib  
+  in SVG.g $ drawLines' r 0 ps
+
+
+drawLines' :: Record LineStyle  -> Double -> [Vector2] -> Svg
+drawLines' lnst off (p1:p2:ps) =
+  let (rsvg, roff) = drawLine' lnst off p1 p2
+  in rsvg `mappend` drawLines' lnst roff ps
+drawLines' _ _ _ = mempty
+
+
+
+drawLine' :: Record LineStyle  -> Double -> Vector2 -> Vector2 -> (Svg, Double)
+drawLine' lnst off p1@(x1,y1) (x2, y2) =
+  let d = (x2 - x1, y2 - y1)
+      lsl = fromIntegral . fst . vector_box_size $ lnst
+      lsh = toInteger $ snd . vector_box_size $ lnst
+      name = vector_name lnst
+      (Coordinate l phi) = fromVector2 d
+      _l = l - off
+      rotateA = A.transform $ SVG.rotate $ toDegree phi
+      (svg, roff) = drawLineSegs off name lsl _l (fromIntegral x1) (fromIntegral y1)
+  in (SVG.g ! (svgWidth l) ! (svgHeight lsh) ! rotateA $ svg, roff)
+     
+
+drawLineSegs :: Double -> Text -> Double -> Double -> Double -> Double -> (Svg, Double)
+drawLineSegs off name lsl l x y
+  | (off /= 0 && l <= (lsl - off)) =
+      (useLineStyle (round x) (round y) name ! (svgWidth l) ! (svgTranslate (-off) 0), l)
+  | (off /= 0 && l > (lsl - off)) =
+      let _lsl = lsl - off
+          (rsvg, rl) = drawLineSegs 0 name lsl (l - _lsl) (x + _lsl) y
+          lsegoff = useLineStyle (round x) (round y) name !
+                    (svgWidth _lsl) ! (svgTranslate (-off) 0)
+      in (lsegoff `mappend` rsvg, rl)
+  | (l <= lsl) =
+      (useLineStyle (round x) (round y) name ! (svgWidth l), l)
+  | (l >  lsl) =
+      let (rsvg, rl) = drawLineSegs off name lsl (l - lsl) (x + lsl) y
+      in ((useLineStyle (round x) (round y) name) `mappend` rsvg, rl)
+                

@@ -48,7 +48,7 @@ cdata txt = preEscapedToMarkup $ mconcat [ "<![CDATA["
 
 addition =
   mconcat 
-    [ ".s52 { stroke-linecap: square } "
+    [ ".s52 { stroke-linecap: round; stroke-linejoin: round;  } "
     , ".stroke_none{stroke: none} "
     , ".fill_none{fill: none} "
     ]

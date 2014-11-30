@@ -21,11 +21,11 @@ svgY:: (Integral i) => i -> SVG.Attribute
 svgY = A.y . SVG.toValue . toInteger
 
 
-svgWidth :: (Integral i) => i -> SVG.Attribute
-svgWidth = A.width . SVG.toValue . toInteger
+svgWidth :: (SVG.ToValue i) => i -> SVG.Attribute
+svgWidth = A.width . SVG.toValue 
 
-svgHeight :: (Integral i) => i -> SVG.Attribute
-svgHeight = A.height . SVG.toValue . toInteger 
+svgHeight :: (SVG.ToValue i) => i -> SVG.Attribute
+svgHeight = A.height . SVG.toValue 
              
 svgViewBox :: (Show i, Num i) => i -> i -> i -> i -> SVG.Attribute
 svgViewBox _x _y _w _h = 
@@ -73,5 +73,13 @@ patternFill n = A.fill . SVG.preEscapedTextValue . mconcat $ ["url(#patt_",n,")"
 lineStylePrefix :: Text
 lineStylePrefix = "lnst_"
 
-lineStyleStroke :: Text -> SVG.Attribute
-lineStyleStroke n = A.stroke . SVG.preEscapedTextValue . mconcat $ ["url(#patt_",n,")" ]
+useLineStyle :: Integral i => i -> i -> Text -> Svg
+useLineStyle x y i = 
+  let ref = mconcat [ "#", lineStylePrefix , i ]
+      refA = A.xlinkHref . SVG.toValue $ ref
+  in SVG.use ! refA ! svgX x ! svgY y
+
+
+
+
+

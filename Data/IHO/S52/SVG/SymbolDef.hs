@@ -27,7 +27,7 @@ renderSymbolDef symb =
       _h = h + (2 * lwOff)
       translateA = svgTranslate (-1 * px) (-1 * py)
       idA = A.id_ $ SVG.textValue $ mconcat [ symbolPrefix, vector_name symb]
-  in SVG.symbol ! idA ! svgWidth _w ! svgHeight _h ! svgViewBox _x _y _w _h ! translateA $ do
+  in SVG.symbol ! idA ! svgWidth (toInteger _w) ! svgHeight (toInteger _h) ! svgViewBox _x _y _w _h ! translateA $ do
     svgDesc $ vector_xpo symb
     renderSymbol symb
      
